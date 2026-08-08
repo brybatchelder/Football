@@ -116,7 +116,7 @@ const slotLabels: Record<StarterRuleKey, LineupSlot> = {
   WR: "WR",
   TE: "TE",
   PK: "PK",
-  OFFENSIVE_FLEX: "FLEX",
+  OFFENSIVE_FLEX: "OFLEX",
   DL: "DL",
   LB: "LB",
   DB: "DB",

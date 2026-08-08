@@ -13,14 +13,14 @@ describe("lineup configuration", () => {
     const slots = buildLineupSlots(defaultStarterCounts);
 
     expect(totalStarters(defaultStarterCounts)).toBe(17);
-    expect(slots.filter((slot) => slot.label === "FLEX")).toHaveLength(2);
+    expect(slots.filter((slot) => slot.label === "OFLEX")).toHaveLength(2);
     expect(slots.filter((slot) => slot.label === "DFLEX")).toHaveLength(2);
   });
 
   it("keeps quarterbacks out of offensive flex and all offense out of defensive flex", () => {
     const slots = buildLineupSlots(defaultStarterCounts);
 
-    expect(slots.find((slot) => slot.label === "FLEX")?.eligible).toEqual([
+    expect(slots.find((slot) => slot.label === "OFLEX")?.eligible).toEqual([
       "RB",
       "WR",
       "TE",

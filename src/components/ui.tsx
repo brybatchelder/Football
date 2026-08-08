@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Position, RosterStatus } from "@/domain/types";
 export type LineupSlot =
-  Position | "FLEX" | "DFLEX" | "SUPERFLEX" | "BENCH" | "IR" | "TAXI";
+  Position | "OFLEX" | "DFLEX" | "SUPERFLEX" | "BENCH" | "IR" | "TAXI";
 export function PageHeader({
   eyebrow = "Front Office Football League",
   title,

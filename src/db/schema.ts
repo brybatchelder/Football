@@ -147,6 +147,17 @@ export const franchises = pgTable("franchises", {
   abbreviation: text("abbreviation").notNull(),
   ...timestamps,
 });
+/** Historical names are attributes of one continuing franchise, never a new identity. */
+export const franchiseAliases = pgTable("franchise_aliases", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  franchiseId: uuid("franchise_id").references(() => franchises.id).notNull(),
+  name: text("name").notNull(),
+  abbreviation: text("abbreviation"),
+  effectiveFromSeason: integer("effective_from_season"),
+  effectiveToSeason: integer("effective_to_season"),
+  source: text("source").notNull(),
+  ...timestamps,
+});
 export const franchiseSeasons = pgTable("franchise_seasons", {
   id: uuid("id").defaultRandom().primaryKey(),
   franchiseId: uuid("franchise_id")
@@ -379,6 +390,28 @@ export const fantasyMatchups = pgTable("fantasy_matchups", {
   awayFranchiseSeasonId: uuid("away_franchise_season_id")
     .references(() => franchiseSeasons.id)
     .notNull(),
+  matchupType: text("matchup_type").default("regular_season").notNull(),
+  status: text("status").default("scheduled").notNull(),
+});
+export const seasonResults = pgTable("season_results", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  franchiseSeasonId: uuid("franchise_season_id").references(() => franchiseSeasons.id).notNull(),
+  wins: integer("wins").default(0).notNull(),
+  losses: integer("losses").default(0).notNull(),
+  ties: integer("ties").default(0).notNull(),
+  pointsFor: numeric("points_for", { precision: 12, scale: 2 }).default("0").notNull(),
+  pointsAgainst: numeric("points_against", { precision: 12, scale: 2 }).default("0").notNull(),
+  playoffFinish: text("playoff_finish"),
+  finalRank: integer("final_rank"),
+  ...timestamps,
+});
+export const championships = pgTable("championships", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  leagueSeasonId: uuid("league_season_id").references(() => leagueSeasons.id).notNull(),
+  championFranchiseSeasonId: uuid("champion_franchise_season_id").references(() => franchiseSeasons.id).notNull(),
+  runnerUpFranchiseSeasonId: uuid("runner_up_franchise_season_id").references(() => franchiseSeasons.id),
+  championshipMatchupId: uuid("championship_matchup_id").references(() => fantasyMatchups.id),
+  ...timestamps,
 });
 export const lineupSubmissions = pgTable("lineup_submissions", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -391,6 +424,8 @@ export const lineupSubmissions = pgTable("lineup_submissions", {
   submittedAt: timestamp("submitted_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
+  /** Snapshot of derived personnel/formations at submission for historical analysis. */
+  formation: jsonb("formation").default({}).notNull(),
 });
 export const lineupSlots = pgTable("lineup_slots", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -431,6 +466,32 @@ export const playerWeekScores = pgTable("player_week_scores", {
     .notNull(),
   points: numeric("points", { precision: 12, scale: 2 }).notNull(),
   ruleVersion: text("rule_version").notNull(),
+});
+/** Immutable observation log: corrections create a new snapshot instead of overwriting history. */
+export const liveStatSnapshots = pgTable("live_stat_snapshots", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  playerId: uuid("player_id").references(() => players.id).notNull(),
+  nflGameId: uuid("nfl_game_id").references(() => nflGames.id).notNull(),
+  observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+  source: text("source").notNull(),
+  sourceVersion: text("source_version"),
+  stats: jsonb("stats").notNull(),
+  payloadHash: text("payload_hash").notNull(),
+  ...timestamps,
+});
+export const liveEvents = pgTable("live_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  nflGameId: uuid("nfl_game_id").references(() => nflGames.id).notNull(),
+  playerId: uuid("player_id").references(() => players.id),
+  snapshotId: uuid("snapshot_id").references(() => liveStatSnapshots.id),
+  eventType: text("event_type").notNull(),
+  confidence: text("confidence").notNull(),
+  statDelta: jsonb("stat_delta").default({}).notNull(),
+  fantasyPointDelta: numeric("fantasy_point_delta", { precision: 12, scale: 2 }).notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  source: text("source").notNull(),
+  enrichment: jsonb("enrichment").default({}).notNull(),
+  ...timestamps,
 });
 export const franchiseWeekScores = pgTable("franchise_week_scores", {
   id: uuid("id").defaultRandom().primaryKey(),

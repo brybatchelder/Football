@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   Flame,
   GripVertical,
+  Newspaper,
   Search,
   ShieldAlert,
   Sparkles,
@@ -25,10 +26,12 @@ import {
   movePlayerToLineupSlot,
   normalizeStarterCounts,
 } from "@/domain/lineup-config";
+import { lineupFormation } from "@/domain/lineup-formation";
 import {
   Card,
   Money,
   PlayerIdentity,
+  PositionBadge,
   SlotBadge,
 } from "@/components/ui";
 
@@ -130,7 +133,7 @@ function MyTeam({
   if (feature === "contracts") {
     const salary = team.reduce((sum, player) => sum + Number(player.salary), 0);
     return (
-      <div className="stack">
+      <div className="stack lineup-side-column">
         <div className="grid-4">
           <Metric
             label="Committed salary"
@@ -266,6 +269,13 @@ function LineupBuilder({ players }: { players: RosterPlayer[] }) {
   const assigned = new Set(Object.values(assignments).filter(Boolean));
   const bench = players.filter(
     (p) => p.status === "active" && !assigned.has(p.id),
+  ).sort(
+    (left, right) => {
+      const positionDifference =
+        positionOrder.indexOf(left.position) - positionOrder.indexOf(right.position);
+      return positionDifference ||
+        Number(lineupDisplay(right).projection) - Number(lineupDisplay(left).projection);
+    },
   );
   const statusGroups = [
     ["BENCH", bench],
@@ -275,6 +285,15 @@ function LineupBuilder({ players }: { players: RosterPlayer[] }) {
   const activeInteractionPlayerId = draggedPlayerId ?? selectedPlayerId;
   const activeInteractionPlayer = players.find(
     (player) => player.id === activeInteractionPlayerId,
+  );
+  const selectedStarterSlot = lineupSlots.find(
+    (slot) => assignments[slot.key] === selectedPlayerId,
+  );
+  const aiyukStarting = assigned.has(
+    players.find((player) => player.name === "Brandon Aiyuk")?.id ?? "",
+  );
+  const jeffersonBenched = bench.some(
+    (player) => player.name === "Justin Jefferson",
   );
 
   function placePlayer(playerId: string, slotKey: string) {
@@ -305,15 +324,68 @@ function LineupBuilder({ players }: { players: RosterPlayer[] }) {
     setDraggedPlayerId(playerId);
   }
 
+  const startersSet = Object.values(assignments).filter(Boolean).length;
+  const assignedStarters = lineupSlots.flatMap((slot) => {
+      const player = players.find(
+        (candidate) => candidate.id === assignments[slot.key],
+      );
+      return player ? [{ position: player.position, slot: slot.label }] : [];
+    });
+  const formation = lineupFormation(assignedStarters);
+
   return (
-    <div className="dashboard-grid">
+    <div
+      className="stack lineup-workspace"
+      onClick={(event) => {
+        if (!(event.target as HTMLElement).closest("button")) {
+          setSelectedPlayerId(null);
+        }
+      }}
+    >
+      <section className="lineup-matchup-strip" aria-label="Week 1 matchup">
+        <div>
+          <span>Canton Legends</span>
+          <strong>7–3</strong>
+          <small>131.8 projected</small>
+        </div>
+        <div className="lineup-matchup-center">
+          <span>Week 1</span>
+          <strong>61% win probability</strong>
+          <i aria-hidden />
+          <small>{startersSet} / {lineupSlots.length} starters set · Locks Thu 7:15 PM</small>
+        </div>
+        <div className="lineup-matchup-away">
+          <span>Detroit Fury</span>
+          <strong>6–4</strong>
+          <small>126.4 projected</small>
+        </div>
+      </section>
+      <div className="lineup-formation-strip" aria-label="Current lineup formations">
+        <div>
+          <span>Offense</span>
+          <strong>{formation.offense.name}</strong>
+          <small>{formation.offense.personnel}</small>
+        </div>
+        <div>
+          <span>Defense</span>
+          <strong>{formation.defense.name}</strong>
+          <small>{formation.defense.personnel}</small>
+        </div>
+      </div>
+      <div className="dashboard-grid">
       <Card
-        title="Week 1 starters"
+        title={`Starters · ${startersSet} / ${lineupSlots.length} set`}
         action={<span className="badge badge-active">Locks Thu · 7:15 PM</span>}
       >
         <p className="lineup-instructions">
           Click a player, then click an eligible slot—or drag and drop.
         </p>
+        {aiyukStarting && jeffersonBenched && (
+          <div className="lineup-warning" role="status">
+            <strong>Lineup check</strong>
+            Justin Jefferson is projected 8.6 points above Brandon Aiyuk on your bench.
+          </div>
+        )}
         <div className="lineup-list">
           {lineupSlots.map((slot) => {
             const player = players.find(
@@ -359,14 +431,14 @@ function LineupBuilder({ players }: { players: RosterPlayer[] }) {
                   aria-label={`${slot.label} starter: ${player?.name ?? "empty"}`}
                 >
                   {player ? <GripVertical size={15} aria-hidden /> : null}
-                  <span>
-                    <strong>{player?.name ?? "Empty slot"}</strong>
-                    <small>
-                      {player
-                        ? `${player.position} · ${player.team}`
-                        : `Accepts ${slot.eligible.join(" / ")}`}
-                    </small>
-                  </span>
+                  {player ? (
+                    <PlayerLineupDetails player={player} />
+                  ) : (
+                    <span className="lineup-empty-slot">
+                      <strong>Empty slot</strong>
+                      <small>Accepts {slot.eligible.join(" / ")}</small>
+                    </span>
+                  )}
                 </button>
               </div>
             );
@@ -382,7 +454,7 @@ function LineupBuilder({ players }: { players: RosterPlayer[] }) {
       </Card>
       <div className="stack">
         {statusGroups.map(([slot, group]) => (
-          <Card title={`${slot} · ${group.length}`} key={slot}>
+          <Card title={`${slot} · ${group.length}`} key={slot} className={slot === "BENCH" ? "lineup-bench-card" : "lineup-reserve-card"}>
             <div
               className={`mini-player-list ${slot === "BENCH" ? "bench-drop-zone is-scrollable" : ""}`}
               onDragOver={(event) => {
@@ -420,6 +492,10 @@ function LineupBuilder({ players }: { players: RosterPlayer[] }) {
                   <button
                     className={`bench-player-button ${
                       player.id === selectedPlayerId ? "selected" : ""
+                    } ${
+                      selectedStarterSlot?.eligible.includes(player.position)
+                        ? "eligible-target"
+                        : ""
                     }`}
                     type="button"
                     draggable
@@ -428,6 +504,12 @@ function LineupBuilder({ players }: { players: RosterPlayer[] }) {
                     onDragEnd={() => setDraggedPlayerId(null)}
                     onClick={(event) => {
                       event.stopPropagation();
+                      if (
+                        selectedStarterSlot?.eligible.includes(player.position)
+                      ) {
+                        placePlayer(player.id, selectedStarterSlot.key);
+                        return;
+                      }
                       setSelectedPlayerId((current) =>
                         current === player.id ? null : player.id,
                       );
@@ -435,19 +517,12 @@ function LineupBuilder({ players }: { players: RosterPlayer[] }) {
                     aria-pressed={player.id === selectedPlayerId}
                   >
                     <GripVertical size={14} aria-hidden />
-                    <SlotBadge slot="BENCH" />
-                    <PlayerIdentity
-                      name={player.name}
-                      position={player.position}
-                    />
+                    <PlayerLineupDetails player={player} />
                   </button>
                 ) : (
-                  <div key={player.id}>
+                  <div className="reserve-player-row" key={player.id}>
                     <SlotBadge slot={slot} />
-                    <PlayerIdentity
-                      name={player.name}
-                      position={player.position}
-                    />
+                    <PlayerLineupDetails player={player} />
                   </div>
                 ),
               )}
@@ -458,7 +533,62 @@ function LineupBuilder({ players }: { players: RosterPlayer[] }) {
           </Card>
         ))}
       </div>
+      </div>
     </div>
+  );
+}
+
+type LineupDisplay = {
+  opponent: string;
+  kickoff: string;
+  projection: string;
+  rank: string;
+  started: string;
+  news: string;
+  injury?: "Q" | "D" | "O";
+};
+
+const lineupOverrides: Record<string, Partial<LineupDisplay>> = {
+  "Jalen Hurts": { opponent: "vs WAS", kickoff: "Sun 3:25", projection: "23.9", rank: "QB8", started: "90%", news: "2d", injury: "Q" },
+  "Tyler Shough": { opponent: "@ DET", kickoff: "Sun 12:00", projection: "20.0", rank: "QB19", started: "37%", news: "3d" },
+  "Derrick Henry": { projection: "16.8", rank: "RB11", started: "82%", news: "5h" },
+  "Justin Jefferson": { projection: "14.5", rank: "WR9", started: "76%", news: "14m" },
+  "Brandon Aiyuk": { projection: "5.9", rank: "WR89", started: "0%", news: "18m", injury: "Q" },
+};
+
+function lineupDisplay(player: RosterPlayer): LineupDisplay {
+  const projected = Math.max(2.1, Number(player.priorPoints) / 17).toFixed(1);
+  return {
+    opponent: player.team === "PHI" ? "vs WAS" : player.team === "NOS" ? "@ DET" : "vs TBD",
+    kickoff: player.team === "PHI" ? "Sun 3:25" : "Sun 12:00",
+    projection: projected,
+    rank: `${player.position}${Math.max(8, Math.round(100 - Number(projected) * 3))}`,
+    started: `${Math.min(91, Math.max(0, Math.round(Number(projected) * 4)))}%`,
+    news: "2d",
+    ...lineupOverrides[player.name],
+  };
+}
+
+function PlayerLineupDetails({ player }: { player: RosterPlayer }) {
+  const display = lineupDisplay(player);
+  const injuryLabels = { Q: "Questionable", D: "Doubtful", O: "Out" };
+  const hasFreshNews = display.news === "14m" || display.news === "18m";
+  return (
+    <span className="lineup-player-details">
+      <span className="lineup-player-primary">
+        <PositionBadge position={player.position} />
+        <strong>{player.name}</strong>
+        <small>{player.team} {display.opponent} · {display.kickoff}</small>
+      </span>
+      <span className="lineup-player-secondary">
+        {display.injury && <span className={`injury-status injury-${display.injury.toLowerCase()}`} title={injuryLabels[display.injury]}>{display.injury}</span>}
+        <span className="bye-label">BYE {player.bye}</span>
+        <b>{display.projection} <small>proj</small></b>
+        <span>{display.rank}</span>
+        <span>{display.started} <small>start</small></span>
+        <span className={hasFreshNews ? "fresh-news" : ""}><Newspaper size={12} aria-hidden /> {display.news}</span>
+      </span>
+    </span>
   );
 }
 

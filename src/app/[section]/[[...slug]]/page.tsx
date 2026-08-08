@@ -55,14 +55,16 @@ export default async function FeaturePage({
 }) {
   const { section, slug } = await params;
   const feature = slug?.[0] ?? defaultFeature(section);
+  const description =
+    section === "my-team" && feature === "lineup"
+      ? "Set your Week 1 starters. Players lock at their scheduled kickoff."
+      : descriptions[section] ?? "FOFL league operations and analysis.";
   return (
     <div className="page">
       <PageHeader
         eyebrow={section.replaceAll("-", " ")}
         title={featureNames[feature] ?? titleCase(feature)}
-        description={
-          descriptions[section] ?? "FOFL league operations and analysis."
-        }
+        description={description}
       />
       <FeatureWorkspace
         section={section}
