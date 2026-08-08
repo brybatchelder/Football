@@ -1,6 +1,7 @@
 import { FeatureWorkspace } from "@/components/feature-workspace";
 import { PageHeader } from "@/components/ui";
 import { franchises, roster } from "@/data/demo";
+import { currentRole } from "@/auth/permissions";
 
 const descriptions: Record<string, string> = {
   "my-team":
@@ -54,23 +55,28 @@ export default async function FeaturePage({
   params: Promise<{ section: string; slug?: string[] }>;
 }) {
   const { section, slug } = await params;
+  const role = await currentRole();
   const feature = slug?.[0] ?? defaultFeature(section);
   const description =
-    section === "my-team" && feature === "lineup"
+    section === "preferences"
+      ? "Choose how Football displays league and player information on this device."
+      : section === "my-team" && feature === "lineup"
       ? "Set your Week 1 starters. Players lock at their scheduled kickoff."
       : descriptions[section] ?? "FOFL league operations and analysis.";
+  const usesContextStripOnly = section === "draft-auction" && feature === "rfa";
   return (
     <div className="page">
-      <PageHeader
+      {!usesContextStripOnly && <PageHeader
         eyebrow={section.replaceAll("-", " ")}
-        title={featureNames[feature] ?? titleCase(feature)}
+        title={section === "preferences" ? "Preferences" : featureNames[feature] ?? titleCase(feature)}
         description={description}
-      />
+      />}
       <FeatureWorkspace
         section={section}
         feature={feature}
         players={roster}
         franchises={franchises}
+        role={role}
       />
     </div>
   );

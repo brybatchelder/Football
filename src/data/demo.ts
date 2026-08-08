@@ -141,6 +141,26 @@ export const standings = franchises.map((franchise) => ({
   pointsAgainst: "0.00",
 }));
 
+export const draftPicks = [
+  { id: "2027-can-1", season: 2027, round: 1, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+  { id: "2027-sea-1", season: 2027, round: 1, originalFranchiseId: "seattle-rainiers", currentFranchiseId: "canton-legends", acquiredFromFranchiseId: "memphis-showboats", acquiredAt: "Jul 18, 2026", lineage: ["seattle-rainiers", "memphis-showboats", "canton-legends"] },
+  { id: "2027-can-2", season: 2027, round: 2, originalFranchiseId: "canton-legends", currentFranchiseId: "detroit-fury", acquiredFromFranchiseId: "canton-legends", acquiredAt: "Jun 4, 2026", lineage: ["canton-legends", "detroit-fury"] },
+  { id: "2027-can-3", season: 2027, round: 3, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+  { id: "2027-hou-3", season: 2027, round: 3, originalFranchiseId: "houston-oilers", currentFranchiseId: "canton-legends", acquiredFromFranchiseId: "houston-oilers", acquiredAt: "May 11, 2026", lineage: ["houston-oilers", "canton-legends"] },
+  { id: "2027-can-4", season: 2027, round: 4, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+  { id: "2027-can-5", season: 2027, round: 5, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+  { id: "2028-can-1", season: 2028, round: 1, originalFranchiseId: "canton-legends", currentFranchiseId: "memphis-showboats", acquiredFromFranchiseId: "canton-legends", acquiredAt: "Jun 4, 2026", lineage: ["canton-legends", "memphis-showboats"] },
+  { id: "2028-det-2", season: 2028, round: 2, originalFranchiseId: "detroit-fury", currentFranchiseId: "canton-legends", acquiredFromFranchiseId: "detroit-fury", acquiredAt: "Aug 2, 2026", lineage: ["detroit-fury", "canton-legends"] },
+  { id: "2028-can-3", season: 2028, round: 3, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+  { id: "2028-can-4", season: 2028, round: 4, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+  { id: "2028-can-5", season: 2028, round: 5, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+  { id: "2029-can-1", season: 2029, round: 1, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+  { id: "2029-can-2", season: 2029, round: 2, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+  { id: "2029-can-3", season: 2029, round: 3, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+  { id: "2029-can-4", season: 2029, round: 4, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+  { id: "2029-can-5", season: 2029, round: 5, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },
+];
+
 export const auditEntries = [
   {
     actor: "League Importer",

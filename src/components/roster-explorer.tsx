@@ -12,6 +12,7 @@ import {
 import { rosterSummary } from "@/domain/league-rules";
 import type { Position, RosterPlayer } from "@/domain/types";
 import { Money, PlayerIdentity, StatusBadge } from "./ui";
+import { NflTeamMark } from "./team-display";
 
 type Franchise = {
   id: string;
@@ -236,7 +237,7 @@ export function RosterExplorer({
                       />
                       <div className="subtle">{row.original.franchise}</div>
                     </td>
-                    <td>{row.original.team}</td>
+                    <td><NflTeamMark team={row.original.team} /></td>
                     <td>{row.original.priorPoints}</td>
                     <td>{row.original.bye}</td>
                     <td>
@@ -265,7 +266,7 @@ export function RosterExplorer({
                   <div>
                     <PlayerIdentity name={p.name} position={p.position} />
                     <div className="subtle">
-                      {p.team} · Bye {p.bye}
+                      <NflTeamMark team={p.team} /> · Bye {p.bye}
                     </div>
                   </div>
                   <StatusBadge status={p.status} />
@@ -347,7 +348,7 @@ export function RosterExplorer({
                                   <StatusBadge status={p.status} />
                                 )}
                                 <div className="subtle">
-                                  {p.team}
+                                  <NflTeamMark team={p.team} />
                                   {salary && (
                                     <>
                                       {" "}

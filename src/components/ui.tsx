@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Position, RosterStatus } from "@/domain/types";
 export type LineupSlot =
   Position | "OFLEX" | "DFLEX" | "SUPERFLEX" | "BENCH" | "IR" | "TAXI";
@@ -14,19 +13,14 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <>
-      <div className="breadcrumbs">
-        <Link href="/league">League</Link> / <span>{title}</span>
+    <header className="page-header">
+      <div>
+        <div className="eyebrow">{eyebrow}</div>
+        <h1>{title}</h1>
+        {description && <p>{description}</p>}
       </div>
-      <header className="page-header">
-        <div>
-          <div className="eyebrow">{eyebrow}</div>
-          <h1>{title}</h1>
-          {description && <p>{description}</p>}
-        </div>
-        {actions && <div className="button-row">{actions}</div>}
-      </header>
-    </>
+      {actions && <div className="button-row">{actions}</div>}
+    </header>
   );
 }
 export function Card({

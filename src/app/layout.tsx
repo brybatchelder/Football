@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { currentRole } from "@/auth/permissions";
 import { AppShell } from "@/components/app-shell";
+import { TeamDisplayProvider } from "@/components/team-display";
 
 export const metadata: Metadata = {
   title: {
@@ -10,13 +12,16 @@ export const metadata: Metadata = {
   description:
     "Private contract dynasty league management for the Front Office Football League.",
 };
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const role = await currentRole();
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <AppShell>{children}</AppShell>
+        <TeamDisplayProvider>
+          <AppShell role={role}>{children}</AppShell>
+        </TeamDisplayProvider>
       </body>
     </html>
   );

@@ -2,14 +2,16 @@
 import Link from "next/link";
 import {
   Bell,
-  ChevronDown,
   Menu,
   Moon,
   ShieldCheck,
   Sun,
+  UserRound,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import type { AppRole } from "@/domain/types";
 
 const nav = [
   {
@@ -49,13 +51,12 @@ const nav = [
   },
   {
     label: "Transactions",
-    href: "/transactions/trade-center",
+    href: "/transactions/activity",
     items: [
-      ["Trade Room", "/transactions/trade-center"],
-      ["Waivers", "/transactions/waivers"],
-      ["Add / Drop", "/transactions/add-drop"],
-      ["Trade Block", "/transactions/trade-block"],
       ["Activity", "/transactions/activity"],
+      ["Roster Moves", "/transactions/roster-moves"],
+      ["Trade Room", "/transactions/trade-center"],
+      ["Trade Block", "/transactions/trade-block"],
       ["Trade Analyzer", "/transactions/trade-analyzer"],
     ],
   },
@@ -66,7 +67,6 @@ const nav = [
       ["Draft Room", "/draft-auction/draft-room"],
       ["Auction House", "/draft-auction/auction-house"],
       ["RFA", "/draft-auction/rfa"],
-      ["Franchise / Transition Tags", "/draft-auction/tags"],
       ["Draft Board", "/draft-auction/draft-board"],
       ["Pick Ownership", "/draft-auction/pick-ownership"],
     ],
@@ -76,22 +76,54 @@ const nav = [
     href: "/league",
     items: [
       ["League HQ", "/league"],
+      ["Rosters", "/league/rosters"],
+      ["Lifecycle", "/league/lifecycle"],
       ["Standings", "/standings"],
       ["Teams", "/league/teams"],
       ["Power Rankings", "/league/power-rankings"],
       ["Records", "/league/records"],
       ["History & Memory", "/league/history"],
       ["Rules", "/league/rules"],
-      ["Commissioner", "/commissioner"],
     ],
   },
 ] as const;
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  role,
+}: {
+  children: React.ReactNode;
+  role: AppRole;
+}) {
   const [open, setOpen] = useState(false);
   const [dark, setDark] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const pathname = usePathname();
+  const activeGroup = nav.find((group) =>
+    group.items.some(([, href]) => pathname === href || pathname.startsWith(`${href}/`)),
+  );
+  const navItems: (readonly [string, string])[] = [];
+  nav.forEach((group) => navItems.push(...group.items));
+  const activeItem = navItems
+    .sort((left, right) => right[1].length - left[1].length)
+    .find(([, href]) => pathname === href || pathname.startsWith(`${href}/`));
+  const locationLabel = activeItem?.[0] ?? routeLocation(pathname);
+  const lifecycleLabel = pathname === "/draft-auction/rfa"
+    ? "2027 Preseason · RFA — Assign Tags"
+    : "2026 Preseason · Final Roster Compliance";
+  const canManageLeague = role === "commissioner" || role === "assistant_commissioner";
   useEffect(() => {
     const saved = localStorage.getItem("football-theme") === "dark";
     document.documentElement.classList.toggle("dark", saved);
+  }, []);
+  useEffect(() => {
+    function closeProfileMenu(event: PointerEvent) {
+      const target = event.target;
+      if (target instanceof Element && !target.closest("[data-profile-menu]")) {
+        setProfileOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", closeProfileMenu);
+    return () => document.removeEventListener("pointerdown", closeProfileMenu);
   }, []);
   function theme() {
     const next = !document.documentElement.classList.contains("dark");
@@ -113,18 +145,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <nav className="desktop-nav" aria-label="Primary">
             {nav.map((group) => (
               <div className="nav-group" key={group.label}>
-                <Link className="nav-group-link" href={group.href}>
-                  {group.label} <ChevronDown size={13} />
+                <Link
+                  className={`nav-group-link ${activeGroup?.label === group.label ? "active" : ""}`}
+                  href={group.href}
+                  onClick={(event) => event.currentTarget.blur()}
+                >
+                  {group.label}
                 </Link>
                 <div className="nav-menu">
                   {group.items.map(([label, href]) => (
-                    <Link key={href} href={href}>
-                      {label}
-                    </Link>
+                    <Link key={href} href={href} onClick={(event) => event.currentTarget.blur()}>{label}</Link>
                   ))}
                 </div>
               </div>
             ))}
+            {canManageLeague && (
+              <Link
+                className={`nav-group-link commissioner-link ${pathname.startsWith("/commissioner") ? "active" : ""}`}
+                href="/commissioner"
+              >
+                Commissioner
+              </Link>
+            )}
           </nav>
           <div className="nav-tools">
             <button
@@ -137,6 +179,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button className="icon-button" aria-label="Notifications">
               <Bell size={16} />
             </button>
+            <div className="profile-menu" data-profile-menu>
+              <button
+                className="icon-button"
+                aria-label="Open profile menu"
+                aria-expanded={profileOpen}
+                onClick={() => setProfileOpen((current) => !current)}
+              >
+                <UserRound size={16} />
+              </button>
+              {profileOpen && (
+                <div className="profile-dropdown">
+                  <Link href="/my-team/overview" onClick={() => setProfileOpen(false)}>Profile</Link>
+                  <Link href="/preferences" onClick={() => setProfileOpen(false)}>Preferences</Link>
+                  {canManageLeague && <button onClick={() => setProfileOpen(false)}>Become Owner</button>}
+                  {!canManageLeague && <button onClick={() => setProfileOpen(false)}>Become Commissioner</button>}
+                  <button className="profile-logout" onClick={() => setProfileOpen(false)}>Logout</button>
+                </div>
+              )}
+            </div>
             <button
               className="icon-button mobile-toggle"
               aria-label="Toggle menu"
@@ -146,6 +207,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </div>
+        {activeGroup && (
+          <nav className="section-rail" aria-label={`${activeGroup.label} modules`}>
+            <div className="section-rail-inner">
+              <div className="section-rail-heading">
+                <span>Modules</span>
+                <strong>{activeGroup.label}</strong>
+              </div>
+              <div className="section-rail-links">
+                {activeGroup.items.map(([label, href]) => {
+                  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+                  return (
+                    <Link className={isActive ? "active" : ""} key={href} href={href}>
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </nav>
+        )}
         <nav className={`mobile-nav ${open ? "open" : ""}`}>
           {nav.map((group) => (
             <details key={group.label}>
@@ -157,16 +238,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </details>
           ))}
+          {canManageLeague && (
+            <Link onClick={() => setOpen(false)} href="/commissioner">
+              Commissioner
+            </Link>
+          )}
         </nav>
         <div className="league-strip">
           <div className="league-strip-inner">
             <ShieldCheck size={14} />
             <strong>Front Office Football League</strong>
-            <span className="subtle">· Demo environment</span>
-            <span className="season-pill">
+            <span className="league-location">· {locationLabel}</span>
+            <Link className="season-pill" href="/league/lifecycle" title="View league lifecycle">
               <span className="status-dot" />
-              2026 Preseason
-            </span>
+              {lifecycleLabel}
+            </Link>
           </div>
         </div>
       </header>
@@ -179,4 +265,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </footer>
     </div>
   );
+}
+
+function routeLocation(pathname: string) {
+  if (pathname.startsWith("/franchises/")) return "My Roster";
+  if (pathname.startsWith("/commissioner")) return "Commissioner Center";
+  if (pathname === "/preferences") return "Preferences";
+  const segment = pathname.split("/").filter(Boolean).at(-1) ?? "League HQ";
+  return segment.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
