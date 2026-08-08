@@ -1,0 +1,94 @@
+import { FeatureWorkspace } from "@/components/feature-workspace";
+import { PageHeader } from "@/components/ui";
+import { franchises, roster } from "@/data/demo";
+
+const descriptions: Record<string, string> = {
+  "my-team":
+    "Manage Canton like a front office: lineup, contracts, draft capital, competitive window, and franchise history.",
+  gameday:
+    "Follow every FOFL matchup with live league context, rivalry history, playoff leverage, and record alerts.",
+  players:
+    "Search and evaluate the player pool with position, contract, salary, projection, and watchlist context.",
+  transactions:
+    "Find mutually useful deals, manage waivers, and understand every move's roster and cap impact.",
+  "draft-auction":
+    "Run the rookie draft, auction, RFA, tags, and future-pick ownership from one workspace.",
+  league:
+    "Understand the league through power rankings, front-office profiles, economics, records, and permanent memory.",
+};
+
+const featureNames: Record<string, string> = {
+  overview: "Front Office Overview",
+  lineup: "Set Lineup",
+  contracts: "Contracts & Cap",
+  "draft-picks": "Draft Picks",
+  history: "History & League Memory",
+  "my-matchup": "My Matchup",
+  scoreboard: "League Scoreboard",
+  live: "Fantasy RedZone",
+  playoffs: "Playoff Simulator",
+  search: "Player Search",
+  "free-agents": "Free Agents",
+  rankings: "Player Rankings",
+  watchlist: "Watchlist",
+  projections: "Projections",
+  "trade-center": "Trade Room",
+  "add-drop": "Add / Drop",
+  "trade-block": "Trade Block",
+  "trade-analyzer": "Trade Analyzer",
+  "draft-room": "Draft Room",
+  "auction-house": "Auction House",
+  rfa: "Restricted Free Agency",
+  tags: "Franchise & Transition Tags",
+  "draft-board": "Draft Board",
+  "pick-ownership": "Pick Ownership",
+  teams: "League Teams",
+  "power-rankings": "Power Rankings",
+  records: "League Records",
+  rules: "League Rules",
+};
+
+export default async function FeaturePage({
+  params,
+}: {
+  params: Promise<{ section: string; slug?: string[] }>;
+}) {
+  const { section, slug } = await params;
+  const feature = slug?.[0] ?? defaultFeature(section);
+  return (
+    <div className="page">
+      <PageHeader
+        eyebrow={section.replaceAll("-", " ")}
+        title={featureNames[feature] ?? titleCase(feature)}
+        description={
+          descriptions[section] ?? "FOFL league operations and analysis."
+        }
+      />
+      <FeatureWorkspace
+        section={section}
+        feature={feature}
+        players={roster}
+        franchises={franchises}
+      />
+    </div>
+  );
+}
+
+function titleCase(value: string) {
+  return value
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function defaultFeature(section: string) {
+  return (
+    {
+      "my-team": "overview",
+      gameday: "my-matchup",
+      players: "search",
+      transactions: "trade-center",
+      "draft-auction": "draft-room",
+      league: "power-rankings",
+    }[section] ?? "overview"
+  );
+}

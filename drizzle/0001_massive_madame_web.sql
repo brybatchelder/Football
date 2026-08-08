@@ -1,0 +1,1 @@
+ALTER TABLE "roster_rules" ADD COLUMN "offseason_active_limit" integer;

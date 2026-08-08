@@ -1,0 +1,39 @@
+{
+  "league": {
+    "id": "22632",
+    "name": "Front Office Football League",
+    "season": 2026
+  },
+  "franchises": [
+    { "id": "0001", "name": "Canton Legends", "division": "Central" },
+    { "id": "0002", "name": "Tampa Bay Storm", "division": "Eastern" },
+    { "id": "0003", "name": "Memphis Showboats", "division": "Central" },
+    { "id": "0004", "name": "New Orleans Thunder", "division": "Eastern" }
+  ],
+  "players": [
+    {
+      "id": "13593",
+      "name": "Lamar Jackson",
+      "franchiseId": "0001",
+      "salary": "72.00",
+      "contractYears": 3,
+      "status": "active"
+    },
+    {
+      "id": "14836",
+      "name": "CeeDee Lamb",
+      "franchiseId": "0001",
+      "salary": "84.00",
+      "contractYears": 3,
+      "status": "active"
+    },
+    {
+      "id": "16104",
+      "name": "Demo Reconciliation Player",
+      "franchiseId": "0013",
+      "salary": "11.00",
+      "contractYears": 1,
+      "status": "taxi"
+    }
+  ]
+}
