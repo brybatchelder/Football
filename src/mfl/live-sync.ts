@@ -27,6 +27,12 @@ import type { Position, RosterStatus } from "@/domain/types";
 
 const NFLVERSE_PLAYERS_URL =
   "https://github.com/nflverse/nflverse-data/releases/download/players/players.csv";
+// Reviewed against the 2026 MFL and nflverse records. MFL treats these edge
+// defenders as DE while nflverse classifies their current position as LB.
+const reviewedGsisByMflId = new Map([
+  ["16278", "00-0039068"], // Yaya Diaby
+  ["16266", "00-0039111"], // Tuli Tuipulotu
+]);
 
 type MflPlayer = {
   id: string;
@@ -81,10 +87,11 @@ function displayName(value: string) {
 function position(value?: string): Position | null {
   const raw = value?.toUpperCase();
   if (!raw) return null;
-  if (["QB", "RB", "WR", "TE", "LB"].includes(raw)) return raw as Position;
-  if (raw === "K") return "PK";
-  if (["DE", "DT", "NT"].includes(raw)) return "DL";
-  if (["CB", "S", "FS", "SS"].includes(raw)) return "DB";
+  if (["QB", "RB", "WR", "TE"].includes(raw)) return raw as Position;
+  if (["K", "PK", "SPEC"].includes(raw)) return "PK";
+  if (["DL", "DE", "DT", "NT"].includes(raw)) return "DL";
+  if (["DB", "CB", "S", "FS", "SS"].includes(raw)) return "DB";
+  if (["LB", "OLB", "ILB", "MLB"].includes(raw)) return "LB";
   return null;
 }
 
@@ -93,9 +100,11 @@ function nflTeam(value?: string) {
   return (
     {
       ARI: "ARI",
+      AZ: "ARI",
       GBP: "GB",
       JAC: "JAX",
       KCC: "KC",
+      LA: "LAR",
       LVR: "LV",
       NEP: "NE",
       NOS: "NO",
@@ -106,7 +115,11 @@ function nflTeam(value?: string) {
 }
 
 function matchKey(name: string, playerPosition: Position, team: string) {
-  return `${name.toLowerCase().replace(/[^a-z0-9]/g, "")}|${playerPosition}|${nflTeam(team)}`;
+  const normalizedName = name
+    .toLowerCase()
+    .replace(/\b(jr|sr|ii|iii|iv)\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
+  return `${normalizedName}|${playerPosition}|${nflTeam(team)}`;
 }
 
 function rosterStatus(value?: string): RosterStatus {
@@ -302,7 +315,9 @@ export async function syncMflRoster({
           continue;
         }
         let master = byMfl.get(roster.id);
-        const gsisId = mfl.espn_id ? gsisByEspn.get(mfl.espn_id) : undefined;
+        const gsisId =
+          reviewedGsisByMflId.get(roster.id) ??
+          (mfl.espn_id ? gsisByEspn.get(mfl.espn_id) : undefined);
         if (!master && gsisId) master = byGsis.get(gsisId);
         if (!master) {
           const pos = position(mfl.position);
