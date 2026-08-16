@@ -1,4 +1,3 @@
-import "server-only";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
@@ -19,4 +18,9 @@ export async function checkDatabase() {
   } catch {
     return { ok: false, reason: "unavailable" as const };
   }
+}
+export async function closeDatabase() {
+  if (!client) return;
+  await client.end({ timeout: 5 });
+  client = undefined;
 }

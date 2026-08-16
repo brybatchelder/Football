@@ -20,6 +20,9 @@ export type RosterPlayer = {
   contractYears: number;
   status: RosterStatus;
   tag?: string;
+  isRostered?: boolean;
+  nflStatus?: string | null;
+  yearsExperience?: number | null;
 };
 export type MoneyPolicy = {
   cap: string;

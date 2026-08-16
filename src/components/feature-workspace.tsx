@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppRole, Position, RosterPlayer } from "@/domain/types";
+import type { PlayerPoolSource } from "@/data/player-pool";
 import {
   buildLineupSlots,
   defaultStarterCounts,
@@ -105,18 +106,20 @@ export function FeatureWorkspace({
   players,
   franchises,
   role,
+  playerPoolSource = "fofl-only",
 }: {
   section: string;
   feature: string;
   players: RosterPlayer[];
   franchises: Franchise[];
   role: AppRole;
+  playerPoolSource?: PlayerPoolSource;
 }) {
   if (section === "my-team")
     return <MyTeam feature={feature} players={players} />;
   if (section === "gameday") return <GameDay feature={feature} players={players} franchises={franchises} />;
   if (section === "players")
-    return <Players feature={feature} players={players} />;
+    return <Players feature={feature} players={players} source={playerPoolSource} />;
   if (section === "transactions")
     return (
       <Transactions
@@ -666,9 +669,11 @@ function PlayerLineupDetails({ player }: { player: RosterPlayer }) {
 function Players({
   feature,
   players,
+  source,
 }: {
   feature: string;
   players: RosterPlayer[];
+  source: PlayerPoolSource;
 }) {
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState("");
@@ -682,7 +687,7 @@ function Players({
               .toLowerCase()
               .includes(query.toLowerCase())) &&
           (!position || p.position === position) &&
-          (feature !== "free-agents" || Number(p.salary) < 20) &&
+          (feature !== "free-agents" || !p.isRostered) &&
           (feature !== "watchlist" || watchlist.includes(p.id)),
       ),
     [players, query, position, feature, watchlist],
@@ -708,7 +713,9 @@ function Players({
             <option key={pos}>{pos}</option>
           ))}
         </select>
-        <span className="badge">{shown.length} results</span>
+        <span className="badge">
+          {source === "nflverse" ? "nflverse master" : "FOFL roster only"} · {shown.length} results
+        </span>
       </div>
       <Card title={featureNames[feature] ?? "Player database"}>
         <div className="table-wrap">
@@ -718,6 +725,7 @@ function Players({
                 <th>Player</th>
                 <th>Team</th>
                 <th>2025 Pts</th>
+                <th>FOFL</th>
                 <th>Salary</th>
                 <th>Contract</th>
                 <th>Watch</th>
@@ -731,10 +739,11 @@ function Players({
                   </td>
                   <td><NflTeamMark team={p.team} /></td>
                   <td>{p.priorPoints}</td>
+                  <td>{p.isRostered ? p.franchise : "Free Agent"}</td>
                   <td>
-                    <Money value={p.salary} />
+                    {p.isRostered ? <Money value={p.salary} /> : "—"}
                   </td>
-                  <td>{p.contractYears || "—"}</td>
+                  <td>{p.isRostered && p.contractYears ? p.contractYears : "—"}</td>
                   <td>
                     <button
                       className={`icon-button table-action ${watchlist.includes(p.id) ? "selected" : ""}`}
