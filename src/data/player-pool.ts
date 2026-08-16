@@ -1,12 +1,19 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   nflTeams,
+  contracts,
+  franchiseSeasons,
+  franchises,
+  leagueSeasons,
   players,
   playerPositionEligibility,
   playerSeasons,
+  playerTags,
+  rosterEntries,
+  salaries,
 } from "@/db/schema";
 import { roster } from "@/data/demo";
 import type { Position, RosterPlayer } from "@/domain/types";
@@ -55,6 +62,7 @@ export async function loadPlayerPool(season: number): Promise<PlayerPool> {
     const rows = await getDb()
       .select({
         id: players.id,
+        playerSeasonId: playerSeasons.id,
         displayName: players.displayName,
         firstName: players.firstName,
         lastName: players.lastName,
@@ -75,7 +83,7 @@ export async function loadPlayerPool(season: number): Promise<PlayerPool> {
           eq(playerPositionEligibility.isPrimary, true),
         ),
       )
-      .where(eq(playerSeasons.year, season));
+      .where(and(eq(playerSeasons.year, season), eq(players.active, true)));
 
     if (!rows.length) return { players: staticRoster(), source: "fofl-only" };
 
@@ -85,6 +93,52 @@ export async function loadPlayerPool(season: number): Promise<PlayerPool> {
         player,
       ]),
     );
+    const ownershipRows = await getDb()
+      .select({
+        playerSeasonId: rosterEntries.playerSeasonId,
+        franchiseId: franchises.slug,
+        franchise: franchises.name,
+        status: rosterEntries.status,
+        salary: salaries.amount,
+        contractYears: contracts.totalYears,
+        tag: playerTags.type,
+      })
+      .from(rosterEntries)
+      .innerJoin(
+        franchiseSeasons,
+        eq(franchiseSeasons.id, rosterEntries.franchiseSeasonId),
+      )
+      .innerJoin(franchises, eq(franchises.id, franchiseSeasons.franchiseId))
+      .innerJoin(
+        leagueSeasons,
+        eq(leagueSeasons.id, franchiseSeasons.leagueSeasonId),
+      )
+      .leftJoin(
+        salaries,
+        and(
+          eq(salaries.rosterEntryId, rosterEntries.id),
+          isNull(salaries.effectiveTo),
+        ),
+      )
+      .leftJoin(
+        contracts,
+        and(
+          eq(contracts.rosterEntryId, rosterEntries.id),
+          eq(contracts.status, "active"),
+        ),
+      )
+      .leftJoin(
+        playerTags,
+        and(
+          eq(playerTags.rosterEntryId, rosterEntries.id),
+          eq(playerTags.season, season),
+        ),
+      )
+      .where(and(eq(leagueSeasons.year, season), isNull(rosterEntries.releasedAt)));
+    const ownershipByPlayerSeason = new Map(
+      ownershipRows.map((ownership) => [ownership.playerSeasonId, ownership]),
+    );
+    const hasDatabaseOwnership = ownershipRows.length > 0;
     const ownedIds = new Set<string>();
     const pool: RosterPlayer[] = [];
 
@@ -92,9 +146,31 @@ export async function loadPlayerPool(season: number): Promise<PlayerPool> {
       const position = fantasyPosition(row.position);
       if (!position) continue;
       const name = row.displayName?.trim() || `${row.firstName} ${row.lastName}`.trim();
-      const owned = ownedByIdentity.get(
-        identityKey(name, position, row.team ?? "FA"),
-      );
+      const databaseOwnership = ownershipByPlayerSeason.get(row.playerSeasonId);
+      if (databaseOwnership) {
+        pool.push({
+          id: row.id,
+          franchiseId: databaseOwnership.franchiseId,
+          franchise: databaseOwnership.franchise,
+          name,
+          team: row.team ?? "FA",
+          position,
+          priorPoints: row.priorPoints ?? "0.00",
+          currentPoints: "0.00",
+          bye: row.bye ?? 0,
+          salary: databaseOwnership.salary ?? "0.00",
+          contractYears: databaseOwnership.contractYears ?? 0,
+          status: databaseOwnership.status,
+          tag: databaseOwnership.tag ?? undefined,
+          nflStatus: row.nflStatus,
+          yearsExperience: row.yearsExperience,
+          isRostered: true,
+        });
+        continue;
+      }
+      const owned = hasDatabaseOwnership
+        ? undefined
+        : ownedByIdentity.get(identityKey(name, position, row.team ?? "FA"));
       if (owned) {
         ownedIds.add(owned.id);
         pool.push({
@@ -128,8 +204,10 @@ export async function loadPlayerPool(season: number): Promise<PlayerPool> {
       }
     }
 
-    for (const owned of roster) {
-      if (!ownedIds.has(owned.id)) pool.push({ ...owned, isRostered: true });
+    if (!hasDatabaseOwnership) {
+      for (const owned of roster) {
+        if (!ownedIds.has(owned.id)) pool.push({ ...owned, isRostered: true });
+      }
     }
 
     return { players: pool, source: "nflverse" };

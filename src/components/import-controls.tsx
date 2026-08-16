@@ -22,7 +22,7 @@ export function ImportControls() {
     <section className="card">
       <div className="card-header">
         <h2>Import controls</h2>
-        <span className="badge badge-blue">Fixture driven</span>
+        <span className="badge badge-blue">Live MFL</span>
       </div>
       <div className="card-body">
         <div className="button-row">

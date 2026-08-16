@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FranchiseRoster } from "@/components/franchise-roster";
 import { Card, Money, PageHeader, PlayerIdentity } from "@/components/ui";
-import { franchises, roster } from "@/data/demo";
+import { franchises, leagueClock } from "@/data/demo";
+import { loadPlayerPool } from "@/data/player-pool";
 import { rosterSummary } from "@/domain/league-rules";
 import type { Position } from "@/domain/types";
 
@@ -14,9 +15,10 @@ export default async function FranchisePage({ params }: { params: Promise<{ slug
   const franchise = franchises.find((candidate) => candidate.id === slug);
   if (!franchise) notFound();
 
-  const players = roster.filter((player) => player.franchiseId === slug);
+  const playerPool = await loadPlayerPool(leagueClock.season);
+  const players = playerPool.players.filter((player) => player.franchiseId === slug);
   const summary = rosterSummary(players, { cap: "1000", irPercent: "100", taxiPercent: "100" });
-  const available = new Decimal("1000").minus(franchise.salary).toFixed(2);
+  const available = new Decimal("1000").minus(summary.salary).toFixed(2);
   const contractYearsAvailable = 130 - summary.contractYears;
   const expiringPlayers = players
     .filter((player) => player.contractYears === 1)
@@ -47,7 +49,7 @@ export default async function FranchisePage({ params }: { params: Promise<{ slug
         <Summary label="IR" value={summary.counts.injured_reserve} href="#roster-injured_reserve" />
         <Summary
           label="Cap used"
-          value={<><Money value={franchise.salary} /> / $1,000</>}
+          value={<><Money value={summary.salary} /> / $1,000</>}
           className="roster-summary-cap"
         />
         <Summary

@@ -20,6 +20,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
     "db:sync-nflverse": "tsx src/db/sync-nflverse.ts",
+    "db:sync-mfl": "tsx src/db/sync-mfl.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -1,6 +1,6 @@
 import { FeatureWorkspace } from "@/components/feature-workspace";
 import { PageHeader } from "@/components/ui";
-import { franchises, roster } from "@/data/demo";
+import { franchises } from "@/data/demo";
 import { loadPlayerPool } from "@/data/player-pool";
 import { currentRole } from "@/auth/permissions";
 
@@ -58,10 +58,7 @@ export default async function FeaturePage({
   const { section, slug } = await params;
   const role = await currentRole();
   const feature = slug?.[0] ?? defaultFeature(section);
-  const playerPool =
-    section === "players"
-      ? await loadPlayerPool(Number(process.env.MFL_SEASON ?? 2026))
-      : { players: roster, source: "fofl-only" as const };
+  const playerPool = await loadPlayerPool(Number(process.env.MFL_SEASON ?? 2026));
   const description =
     section === "preferences"
       ? "Choose how Football displays league and player information on this device."

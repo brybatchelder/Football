@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/ui";
-import { franchises, leagueClock, roster } from "@/data/demo";
+import { franchises, leagueClock } from "@/data/demo";
+import { loadPlayerPool } from "@/data/player-pool";
 import { RosterExplorer } from "@/components/roster-explorer";
 export default async function RostersPage({
   searchParams,
@@ -7,6 +8,7 @@ export default async function RostersPage({
   searchParams: Promise<{ format?: string }>;
 }) {
   const format = (await searchParams).format === "grid" ? "grid" : "full";
+  const playerPool = await loadPlayerPool(leagueClock.season);
   return (
     <div className="page">
       <PageHeader
@@ -15,7 +17,7 @@ export default async function RostersPage({
       />
       <RosterExplorer
         initialFormat={format}
-        players={roster}
+        players={playerPool.players.filter((player) => player.isRostered)}
         franchises={franchises}
         season={leagueClock.season}
         currentWeek={leagueClock.currentWeek}
