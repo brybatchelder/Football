@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/ui";
-import { franchises, roster } from "@/data/demo";
+import { franchises, leagueClock, roster } from "@/data/demo";
 import { RosterExplorer } from "@/components/roster-explorer";
 export default async function RostersPage({
   searchParams,
@@ -17,6 +17,8 @@ export default async function RostersPage({
         initialFormat={format}
         players={roster}
         franchises={franchises}
+        season={leagueClock.season}
+        currentWeek={leagueClock.currentWeek}
       />
     </div>
   );

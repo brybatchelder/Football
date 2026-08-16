@@ -2,6 +2,7 @@ import { AlertCircle, CheckCircle2, Database } from "lucide-react";
 import { PageHeader } from "@/components/ui";
 import { requirePermission } from "@/auth/permissions";
 import { ImportControls } from "@/components/import-controls";
+import { PlayerSyncControls } from "@/components/player-sync-controls";
 
 export default async function ImportsPage() {
   await requirePermission("manage_league");
@@ -12,6 +13,8 @@ export default async function ImportsPage() {
         title="MFL Imports & Reconciliation"
         description="Read-only fixture and API imports preserve provider identifiers, raw records, and human-reviewable conflicts."
       />
+      <PlayerSyncControls />
+      <div style={{ height: 14 }} />
       <div className="grid-4" style={{ marginBottom: 14 }}>
         <div className="card metric">
           <div className="metric-label">Provider</div>

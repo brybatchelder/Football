@@ -43,6 +43,7 @@ import {
   SlotBadge,
 } from "@/components/ui";
 import { NflTeamMark, useTeamDisplay } from "@/components/team-display";
+import { DraftRoom } from "@/components/draft-room";
 
 type Franchise = {
   id: string;
@@ -1414,6 +1415,7 @@ function DraftAuction({
   role: AppRole;
 }) {
   if (feature === "rfa") return <RfaWorkspace players={players} franchises={franchises} canManageLeague={role === "commissioner" || role === "assistant_commissioner"} />;
+  if (feature === "draft-room") return <DraftRoom players={players} franchises={franchises} role={role} />;
   return (
     <div className="stack">
       <div className="grid-4">

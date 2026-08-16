@@ -203,24 +203,37 @@ export const nflTeams = pgTable("nfl_teams", {
 });
 export const players = pgTable("players", {
   id: uuid("id").defaultRandom().primaryKey(),
+  displayName: text("display_name"),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   birthDate: date("birth_date"),
+  college: text("college"),
+  rookieYear: integer("rookie_year"),
+  draftYear: integer("draft_year"),
+  draftRound: integer("draft_round"),
+  draftPick: integer("draft_pick"),
   active: boolean("active").default(true).notNull(),
+  sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
   ...timestamps,
 });
-export const playerSeasons = pgTable("player_seasons", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  playerId: uuid("player_id")
-    .references(() => players.id)
-    .notNull(),
-  nflTeamId: uuid("nfl_team_id").references(() => nflTeams.id),
-  year: integer("year").notNull(),
-  priorPoints: numeric("prior_points", { precision: 12, scale: 2 })
-    .default("0")
-    .notNull(),
-  ...timestamps,
-});
+export const playerSeasons = pgTable(
+  "player_seasons",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    playerId: uuid("player_id")
+      .references(() => players.id)
+      .notNull(),
+    nflTeamId: uuid("nfl_team_id").references(() => nflTeams.id),
+    year: integer("year").notNull(),
+    yearsExperience: integer("years_experience"),
+    nflStatus: text("nfl_status"),
+    priorPoints: numeric("prior_points", { precision: 12, scale: 2 })
+      .default("0")
+      .notNull(),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("player_season_player_year").on(t.playerId, t.year)],
+);
 export const playerPositionEligibility = pgTable(
   "player_position_eligibility",
   {
@@ -712,6 +725,34 @@ export const importRecords = pgTable("import_records", {
   action: text("action").notNull(),
   rawPayload: jsonb("raw_payload"),
   message: text("message"),
+});
+export const playerSyncRuns = pgTable("player_sync_runs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  status: runStatusEnum("status").default("pending").notNull(),
+  dryRun: boolean("dry_run").default(true).notNull(),
+  source: text("source").default("nflverse").notNull(),
+  sourceSeason: integer("source_season").notNull(),
+  playersSeen: integer("players_seen").default(0).notNull(),
+  playersCreated: integer("players_created").default(0).notNull(),
+  playersUpdated: integer("players_updated").default(0).notNull(),
+  rosterAttributesUpdated: integer("roster_attributes_updated").default(0).notNull(),
+  matchedAutomatically: integer("matched_automatically").default(0).notNull(),
+  unmatchedCount: integer("unmatched_count").default(0).notNull(),
+  reviewCount: integer("review_count").default(0).notNull(),
+  ownershipRecordsModified: integer("ownership_records_modified").default(0).notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  errorMessage: text("error_message"),
+});
+export const playerSyncIssues = pgTable("player_sync_issues", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  playerSyncRunId: uuid("player_sync_run_id").references(() => playerSyncRuns.id).notNull(),
+  gsisId: text("gsis_id"),
+  displayName: text("display_name"),
+  code: text("code").notNull(),
+  message: text("message").notNull(),
+  candidatePlayerIds: uuid("candidate_player_ids").array().default([]).notNull(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 });
 export const reconciliationIssues = pgTable("reconciliation_issues", {
   id: uuid("id").defaultRandom().primaryKey(),

@@ -14,6 +14,7 @@ export type RosterPlayer = {
   team: string;
   position: Position;
   priorPoints: string;
+  currentPoints?: string;
   bye: number;
   salary: string;
   contractYears: number;

@@ -124,6 +124,7 @@ export const roster: RosterPlayer[] = rawRoster.map((player) => ({
   team: player.team,
   position: player.position as Position,
   priorPoints: player.priorPoints,
+  currentPoints: "0.00",
   bye: player.bye,
   salary: player.salary,
   contractYears: player.contractYears,
@@ -140,6 +141,10 @@ export const standings = franchises.map((franchise) => ({
   points: "0.00",
   pointsAgainst: "0.00",
 }));
+
+// This is replaced by the active league season/week from the provider once live
+// imports begin. Week 0 represents the offseason and preseason.
+export const leagueClock = { season: 2026, currentWeek: 0 } as const;
 
 export const draftPicks = [
   { id: "2027-can-1", season: 2027, round: 1, originalFranchiseId: "canton-legends", currentFranchiseId: "canton-legends" },

@@ -10,8 +10,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { AppRole } from "@/domain/types";
+import { mostSpecificNavigationItem } from "@/domain/navigation";
 
 const nav = [
   {
@@ -97,15 +98,15 @@ export function AppShell({
   const [open, setOpen] = useState(false);
   const [dark, setDark] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState(false);
   const pathname = usePathname();
-  const activeGroup = nav.find((group) =>
-    group.items.some(([, href]) => pathname === href || pathname.startsWith(`${href}/`)),
-  );
+  const router = useRouter();
   const navItems: (readonly [string, string])[] = [];
   nav.forEach((group) => navItems.push(...group.items));
-  const activeItem = navItems
-    .sort((left, right) => right[1].length - left[1].length)
-    .find(([, href]) => pathname === href || pathname.startsWith(`${href}/`));
+  const activeItem = mostSpecificNavigationItem(pathname, navItems);
+  const activeGroup = nav.find((group) =>
+    group.items.some(([, href]) => href === activeItem?.[1]),
+  );
   const locationLabel = activeItem?.[0] ?? routeLocation(pathname);
   const lifecycleLabel = pathname === "/draft-auction/rfa"
     ? "2027 Preseason · RFA — Assign Tags"
@@ -131,6 +132,22 @@ export function AppShell({
     document.documentElement.classList.toggle("dark", next);
     localStorage.setItem("football-theme", next ? "dark" : "light");
   }
+  async function switchRole(nextRole: "owner" | "commissioner") {
+    setSwitchingRole(true);
+    try {
+      const response = await fetch("/api/auth/dev-role", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ role: nextRole }),
+      });
+      if (!response.ok) throw new Error("Role switch failed");
+      setProfileOpen(false);
+      router.push(nextRole === "commissioner" ? "/commissioner" : "/league");
+      router.refresh();
+    } finally {
+      setSwitchingRole(false);
+    }
+  }
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -154,7 +171,15 @@ export function AppShell({
                 </Link>
                 <div className="nav-menu">
                   {group.items.map(([label, href]) => (
-                    <Link key={href} href={href} onClick={(event) => event.currentTarget.blur()}>{label}</Link>
+                    <Link
+                      className={activeItem?.[1] === href ? "active" : ""}
+                      aria-current={activeItem?.[1] === href ? "page" : undefined}
+                      key={href}
+                      href={href}
+                      onClick={(event) => event.currentTarget.blur()}
+                    >
+                      {label}
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -192,8 +217,8 @@ export function AppShell({
                 <div className="profile-dropdown">
                   <Link href="/my-team/overview" onClick={() => setProfileOpen(false)}>Profile</Link>
                   <Link href="/preferences" onClick={() => setProfileOpen(false)}>Preferences</Link>
-                  {canManageLeague && <button onClick={() => setProfileOpen(false)}>Become Owner</button>}
-                  {!canManageLeague && <button onClick={() => setProfileOpen(false)}>Become Commissioner</button>}
+                  {canManageLeague && <button disabled={switchingRole} onClick={() => void switchRole("owner")}>{switchingRole ? "Switching…" : "Become Owner"}</button>}
+                  {!canManageLeague && <button disabled={switchingRole} onClick={() => void switchRole("commissioner")}>{switchingRole ? "Switching…" : "Become Commissioner"}</button>}
                   <button className="profile-logout" onClick={() => setProfileOpen(false)}>Logout</button>
                 </div>
               )}
@@ -216,9 +241,9 @@ export function AppShell({
               </div>
               <div className="section-rail-links">
                 {activeGroup.items.map(([label, href]) => {
-                  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+                  const isActive = activeItem?.[1] === href;
                   return (
-                    <Link className={isActive ? "active" : ""} key={href} href={href}>
+                    <Link className={isActive ? "active" : ""} aria-current={isActive ? "page" : undefined} key={href} href={href}>
                       {label}
                     </Link>
                   );
@@ -232,7 +257,13 @@ export function AppShell({
             <details key={group.label}>
               <summary>{group.label}</summary>
               {group.items.map(([label, href]) => (
-                <Link onClick={() => setOpen(false)} key={href} href={href}>
+                <Link
+                  className={activeItem?.[1] === href ? "active" : ""}
+                  aria-current={activeItem?.[1] === href ? "page" : undefined}
+                  onClick={() => setOpen(false)}
+                  key={href}
+                  href={href}
+                >
                   {label}
                 </Link>
               ))}
