@@ -59,6 +59,7 @@ export type MflSyncResult = {
   contractsUpdated: number;
   salariesUpdated: number;
   tagsUpdated: number;
+  unmatchedPlayers: Array<{ mflId: string; name: string; reason: string }>;
 };
 
 function list<T>(value: T | T[] | undefined): T[] {
@@ -589,6 +590,12 @@ export async function syncMflRoster({
       contractsUpdated,
       salariesUpdated,
       tagsUpdated,
+      unmatchedPlayers: issues.map((issue) => ({
+        mflId: issue.externalId,
+        name:
+          displayName(mflPlayerById.get(issue.externalId)?.name ?? "Unknown player"),
+        reason: issue.message,
+      })),
     };
     await db
       .update(importRuns)
