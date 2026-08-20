@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "franchise_membership_primary_active" ON "franchise_memberships" USING btree ("franchise_id","league_season_id") WHERE "franchise_memberships"."is_primary" = true and "franchise_memberships"."active" = true;

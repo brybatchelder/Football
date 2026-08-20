@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requirePermission } from "@/auth/permissions";
+import { AuthorizationError, requireApiPermission } from "@/auth/permissions";
 import { syncMflRoster } from "@/mfl/live-sync";
 const inputSchema = z.object({ dryRun: z.boolean() });
 export async function POST(request: Request) {
   const correlationId = crypto.randomUUID();
   try {
-    await requirePermission("manage_league");
+    await requireApiPermission("manage_league");
     const body = inputSchema.parse(await request.json());
     const leagueId = process.env.MFL_LEAGUE_ID;
     if (!leagueId) throw new Error("MFL_LEAGUE_ID is not configured");
@@ -14,8 +14,7 @@ export async function POST(request: Request) {
       dryRun: body.dryRun,
       season: Number(process.env.MFL_SEASON ?? 2026),
       leagueId,
-      baseUrl:
-        process.env.MFL_BASE_URL ?? "https://www49.myfantasyleague.com",
+      baseUrl: process.env.MFL_BASE_URL ?? "https://www49.myfantasyleague.com",
     });
     return NextResponse.json({
       correlationId,
@@ -31,7 +30,7 @@ export async function POST(request: Request) {
             ? "Invalid import request"
             : "Import could not be completed",
       },
-      { status: 400 },
+      { status: error instanceof AuthorizationError ? error.status : 400 },
     );
   }
 }

@@ -39,12 +39,18 @@ const rank: Record<AppRole, number> = {
 };
 export function hasPermission(
   role: AppRole,
-  permission: "view" | "manage_roster" | "manage_league" | "manage_platform",
+  permission:
+    | "view"
+    | "manage_roster"
+    | "manage_league"
+    | "manage_owners"
+    | "manage_platform",
 ) {
   const required = {
     view: 0,
     manage_roster: 1,
     manage_league: 2,
+    manage_owners: 3,
     manage_platform: 4,
   }[permission];
   return rank[role] >= required;

@@ -123,7 +123,10 @@ export function RosterSettingsEditor() {
       <div className="lineup-settings-footer">
         <div>
           <strong>{limits.inSeasonActive} in season</strong>
-          <span> · {limits.offseasonActive} offseason · {limits.taxi} taxi</span>
+          <span>
+            {" "}
+            · {limits.offseasonActive} offseason · {limits.taxi} taxi
+          </span>
         </div>
         <div className="button-row">
           <button

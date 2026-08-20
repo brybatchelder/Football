@@ -8,6 +8,7 @@ import {
 import { Card, Money, PageHeader } from "@/components/ui";
 import { draftPicks, franchises, roster, standings } from "@/data/demo";
 import { leagueActivity } from "@/domain/league-activity";
+import { currentViewer } from "@/auth/permissions";
 
 export default async function LeagueHome({
   searchParams,
@@ -15,6 +16,7 @@ export default async function LeagueHome({
   searchParams: Promise<{ view?: string }>;
 }) {
   const { view } = await searchParams;
+  const viewer = await currentViewer();
   if (view === "xtra") return <LeagueXtra />;
   return (
     <div className="page">
@@ -198,7 +200,14 @@ export default async function LeagueHome({
           </Card>
           <Card title="Quick links">
             <div className="stack" style={{ gap: 8 }}>
-              <Link className="btn" href="/franchises/canton-legends">
+              <Link
+                className="btn"
+                href={
+                  viewer.activeFranchise
+                    ? `/franchises/${viewer.activeFranchise.slug}`
+                    : "/account"
+                }
+              >
                 My franchise
               </Link>
               <Link className="btn" href="/league/rosters?format=grid">
@@ -218,45 +227,247 @@ export default async function LeagueHome({
 function LeagueHomeTabs({ active }: { active: "home" | "xtra" }) {
   return (
     <nav className="league-home-tabs" aria-label="League HQ views">
-      <Link className={active === "home" ? "active" : ""} href="/league">League HQ</Link>
-      <Link className={active === "xtra" ? "active" : ""} href="/league?view=xtra">XTRA</Link>
+      <Link className={active === "home" ? "active" : ""} href="/league">
+        League HQ
+      </Link>
+      <Link
+        className={active === "xtra" ? "active" : ""}
+        href="/league?view=xtra"
+      >
+        XTRA
+      </Link>
     </nav>
   );
 }
 
 function LeagueXtra() {
-  const canton = franchises.find((franchise) => franchise.id === "canton-legends")!;
-  const cantonRoster = roster.filter((player) => player.franchiseId === canton.id);
-  const active = cantonRoster.filter((player) => player.status === "active").length;
+  const canton = franchises.find(
+    (franchise) => franchise.id === "canton-legends",
+  )!;
+  const cantonRoster = roster.filter(
+    (player) => player.franchiseId === canton.id,
+  );
+  const active = cantonRoster.filter(
+    (player) => player.status === "active",
+  ).length;
   const taxi = cantonRoster.filter((player) => player.status === "taxi").length;
-  const ir = cantonRoster.filter((player) => player.status === "injured_reserve").length;
-  const ownedPicks = draftPicks.filter((pick) => pick.currentFranchiseId === canton.id).length;
+  const ir = cantonRoster.filter(
+    (player) => player.status === "injured_reserve",
+  ).length;
+  const ownedPicks = draftPicks.filter(
+    (pick) => pick.currentFranchiseId === canton.id,
+  ).length;
   const capAvailable = 1000 - Number(canton.salary);
   return (
     <div className="page league-xtra-page">
       <LeagueHomeTabs active="xtra" />
       <section className="league-xtra-banner">
-        <div><span className="eyebrow">Front Office Football League</span><h1>2026 Preseason</h1><p>33 days to kickoff · Owner command center</p></div>
-        <Link href="/my-team/history">🏆 Defending Champion · Canton Legends</Link>
+        <div>
+          <span className="eyebrow">Front Office Football League</span>
+          <h1>2026 Preseason</h1>
+          <p>33 days to kickoff · Owner command center</p>
+        </div>
+        <Link href="/my-team/history">
+          🏆 Defending Champion · Canton Legends
+        </Link>
       </section>
       <div className="league-xtra-top">
         <section className="league-franchise-command">
-          <header><div><span className="eyebrow">My Franchise</span><h2>{canton.name}</h2><p>{canton.owner} · 2026 Preseason</p></div><span className="franchise-mark" style={{ background: canton.color }}>{canton.abbreviation}</span></header>
-          <div className="league-franchise-metrics"><span><b>{active}</b><small>Active roster</small></span><span><b>${capAvailable.toFixed(0)}</b><small>Cap available</small></span><span><b>{taxi}</b><small>Taxi</small></span><span><b>{ir}</b><small>IR</small></span><span><b>{ownedPicks}</b><small>Future picks</small></span></div>
-          <div className="league-next-action"><div><span>Next action</span><b>Contract declarations due Aug 18</b><small>Review expiring and unassigned contract years.</small></div><Link className="btn btn-primary" href="/my-team/contracts">Manage contracts <ArrowRight size={14} /></Link></div>
+          <header>
+            <div>
+              <span className="eyebrow">My Franchise</span>
+              <h2>{canton.name}</h2>
+              <p>{canton.owner} · 2026 Preseason</p>
+            </div>
+            <span
+              className="franchise-mark"
+              style={{ background: canton.color }}
+            >
+              {canton.abbreviation}
+            </span>
+          </header>
+          <div className="league-franchise-metrics">
+            <span>
+              <b>{active}</b>
+              <small>Active roster</small>
+            </span>
+            <span>
+              <b>${capAvailable.toFixed(0)}</b>
+              <small>Cap available</small>
+            </span>
+            <span>
+              <b>{taxi}</b>
+              <small>Taxi</small>
+            </span>
+            <span>
+              <b>{ir}</b>
+              <small>IR</small>
+            </span>
+            <span>
+              <b>{ownedPicks}</b>
+              <small>Future picks</small>
+            </span>
+          </div>
+          <div className="league-next-action">
+            <div>
+              <span>Next action</span>
+              <b>Contract declarations due Aug 18</b>
+              <small>Review expiring and unassigned contract years.</small>
+            </div>
+            <Link className="btn btn-primary" href="/my-team/contracts">
+              Manage contracts <ArrowRight size={14} />
+            </Link>
+          </div>
         </section>
-        <Card title="Up next"><ul className="list">{[["18", "AUG", "Contract declarations"], ["25", "AUG", "Rookie auction opens"], ["03", "SEP", "Final roster compliance"], ["10", "SEP", "NFL kickoff"]].map(([day, month, title]) => <li key={title}><div className="date-box"><span>{month}</span><strong>{day}</strong></div><div><div className="list-title">{title}</div><div className="list-sub">7:00 PM Central</div></div></li>)}</ul></Card>
-      </div>
-      <div className="league-right-now"><div><span>Next deadline</span><b>Aug 18</b><small>Contract declarations</small></div><div><span>My roster</span><b>{active} active</b><small>{Math.max(0, 42 - active)} openings</small></div><div><span>My cap</span><b>${capAvailable.toFixed(0)}</b><small>Available of $1,000</small></div><div><span>League activity</span><b>{leagueActivity.length} items</b><small>Imported + seeded coverage</small></div></div>
-      <div className="league-xtra-main">
-        <Card title="Around the league" action={<Link className="setup-link" href="/transactions/activity">View activity →</Link>}>
-          <div className="league-activity-feed">{leagueActivity.map((event) => <article key={event.id}><span>{event.type.replace("-", " ")}</span><div><b>{event.title}</b><small>{event.summary} · {event.occurredAt}</small></div></article>)}</div>
+        <Card title="Up next">
+          <ul className="list">
+            {[
+              ["18", "AUG", "Contract declarations"],
+              ["25", "AUG", "Rookie auction opens"],
+              ["03", "SEP", "Final roster compliance"],
+              ["10", "SEP", "NFL kickoff"],
+            ].map(([day, month, title]) => (
+              <li key={title}>
+                <div className="date-box">
+                  <span>{month}</span>
+                  <strong>{day}</strong>
+                </div>
+                <div>
+                  <div className="list-title">{title}</div>
+                  <div className="list-sub">7:00 PM Central</div>
+                </div>
+              </li>
+            ))}
+          </ul>
         </Card>
-        <Card title="Offseason pulse"><div className="offseason-pulse"><span><b>{draftPicks.length}</b> tracked draft assets</span><span><b>{roster.filter((player) => player.status === "taxi").length}</b> Taxi players league-wide</span><span><b>{franchises.filter((franchise) => Number(franchise.salary) >= 900).length}</b> franchises above 90% cap</span><span><b>{leagueActivity.filter((event) => event.type === "trade").length}</b> tracked trades</span></div><Link className="btn" href="/transactions/trade-block">Explore Trade Block</Link></Card>
+      </div>
+      <div className="league-right-now">
+        <div>
+          <span>Next deadline</span>
+          <b>Aug 18</b>
+          <small>Contract declarations</small>
+        </div>
+        <div>
+          <span>My roster</span>
+          <b>{active} active</b>
+          <small>{Math.max(0, 42 - active)} openings</small>
+        </div>
+        <div>
+          <span>My cap</span>
+          <b>${capAvailable.toFixed(0)}</b>
+          <small>Available of $1,000</small>
+        </div>
+        <div>
+          <span>League activity</span>
+          <b>{leagueActivity.length} items</b>
+          <small>Imported + seeded coverage</small>
+        </div>
+      </div>
+      <div className="league-xtra-main">
+        <Card
+          title="Around the league"
+          action={
+            <Link className="setup-link" href="/transactions/activity">
+              View activity →
+            </Link>
+          }
+        >
+          <div className="league-activity-feed">
+            {leagueActivity.map((event) => (
+              <article key={event.id}>
+                <span>{event.type.replace("-", " ")}</span>
+                <div>
+                  <b>{event.title}</b>
+                  <small>
+                    {event.summary} · {event.occurredAt}
+                  </small>
+                </div>
+              </article>
+            ))}
+          </div>
+        </Card>
+        <Card title="Offseason pulse">
+          <div className="offseason-pulse">
+            <span>
+              <b>{draftPicks.length}</b> tracked draft assets
+            </span>
+            <span>
+              <b>
+                {roster.filter((player) => player.status === "taxi").length}
+              </b>{" "}
+              Taxi players league-wide
+            </span>
+            <span>
+              <b>
+                {
+                  franchises.filter(
+                    (franchise) => Number(franchise.salary) >= 900,
+                  ).length
+                }
+              </b>{" "}
+              franchises above 90% cap
+            </span>
+            <span>
+              <b>
+                {
+                  leagueActivity.filter((event) => event.type === "trade")
+                    .length
+                }
+              </b>{" "}
+              tracked trades
+            </span>
+          </div>
+          <Link className="btn" href="/transactions/trade-block">
+            Explore Trade Block
+          </Link>
+        </Card>
       </div>
       <div className="league-xtra-bottom">
-        <Card title="Offseason snapshot"><div className="league-snapshot-grid">{franchises.slice().sort((left, right) => Number(right.salary) - Number(left.salary)).slice(0, 6).map((franchise) => <div key={franchise.id}><span className="franchise-mark" style={{ background: franchise.color }}>{franchise.abbreviation}</span><b>{franchise.name}</b><small><Money value={franchise.salary} /> used · ${(1000 - Number(franchise.salary)).toFixed(0)} available</small></div>)}</div></Card>
-        <Card title="Announcements"><ul className="list"><li><Megaphone size={16} /><div><div className="list-title">2026 contract calendar posted</div><div className="list-sub">Contract declarations open Aug 18</div></div></li><li><AlertTriangle size={16} /><div><div className="list-title">Roster compliance approaching</div><div className="list-sub">Final compliance deadline is Sep 3</div></div></li></ul></Card>
+        <Card title="Offseason snapshot">
+          <div className="league-snapshot-grid">
+            {franchises
+              .slice()
+              .sort((left, right) => Number(right.salary) - Number(left.salary))
+              .slice(0, 6)
+              .map((franchise) => (
+                <div key={franchise.id}>
+                  <span
+                    className="franchise-mark"
+                    style={{ background: franchise.color }}
+                  >
+                    {franchise.abbreviation}
+                  </span>
+                  <b>{franchise.name}</b>
+                  <small>
+                    <Money value={franchise.salary} /> used · $
+                    {(1000 - Number(franchise.salary)).toFixed(0)} available
+                  </small>
+                </div>
+              ))}
+          </div>
+        </Card>
+        <Card title="Announcements">
+          <ul className="list">
+            <li>
+              <Megaphone size={16} />
+              <div>
+                <div className="list-title">2026 contract calendar posted</div>
+                <div className="list-sub">
+                  Contract declarations open Aug 18
+                </div>
+              </div>
+            </li>
+            <li>
+              <AlertTriangle size={16} />
+              <div>
+                <div className="list-title">Roster compliance approaching</div>
+                <div className="list-sub">
+                  Final compliance deadline is Sep 3
+                </div>
+              </div>
+            </li>
+          </ul>
+        </Card>
       </div>
     </div>
   );

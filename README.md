@@ -8,7 +8,7 @@ This is a modular single Next.js repository. The product is not yet large enough
 
 ## Local development
 
-Requirements: Node 20+, pnpm, and PostgreSQL 16+ for persistence. The UI can run without a database using deterministic demo data.
+Requirements: Node 22.13+, pnpm, and PostgreSQL 16+ for persistence. The UI can run without a database using deterministic demo data.
 
 ```bash
 pnpm install
@@ -27,12 +27,17 @@ Useful commands:
 pnpm typecheck
 pnpm lint
 pnpm test
+pnpm test:db
 pnpm test:e2e
 pnpm build
 pnpm start
 ```
 
-Health probes are `/api/health` (process) and `/api/ready` (database readiness). A missing database produces a deliberate degraded response instead of crashing the website.
+Health probes are `/api/health` (process liveness) and `/api/ready` (production configuration, schema, league, and season readiness). A missing dependency produces a deliberate, non-cached degraded response with safe reason codes instead of crashing the website or leaking secrets.
+
+`pnpm test:db` applies the full Drizzle migration chain to an isolated embedded PostgreSQL runtime and verifies the critical authorization constraints. It does not replace a final staging run against the hosted PostgreSQL service.
+
+`pnpm smoke:staging` validates a deployed HTTPS origin from `STAGING_BASE_URL`. It requires full readiness, production security headers, disabled development authentication, and a closed commissioner-bootstrap route. CI runs the local quality/build/browser gates automatically; the staging smoke workflow is an explicit protected-environment release gate.
 
 ## Railway
 
@@ -46,6 +51,6 @@ See [deployment documentation](docs/architecture/deployment.md) for details.
 
 ## Current scope
 
-Implemented: league dashboard, responsive full/grid roster reports and CSV export, franchise detail, commissioner setup and settings, fixture imports with reconciliation, audit view, role guards, comprehensive Drizzle model, health endpoints, domain tests, and route-specific milestone states.
+Implemented: production Better Auth handlers, verified email/password recovery, invitation-only owner registration, league/franchise/season-scoped authorization, owner and franchise administration with role changes and audit history, owner-scoped franchise identity and branding, account and active-franchise context, stable MFL-to-FOFL franchise identity mapping, database-backed responsive franchise detail, league dashboard, responsive full/grid roster reports and CSV export, commissioner setup and settings, fixture imports with reconciliation, audit view, comprehensive Drizzle model, health endpoints, domain tests, and route-specific milestone states.
 
 Not active yet: live scoring, write transactions, auctions, drafts, lineup submissions, and community workflows. Their routes describe data dependencies and the 2026 source of truth.

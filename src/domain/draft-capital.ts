@@ -18,7 +18,8 @@ const rookieSalaryBySlot = {
 const rookieSalaryByRound: Record<number, number> = { 3: 10, 4: 6, 5: 3, 6: 1 };
 
 export function rookiePickSalary(round: number, slot?: number) {
-  const slotScale = rookieSalaryBySlot[round as keyof typeof rookieSalaryBySlot];
+  const slotScale =
+    rookieSalaryBySlot[round as keyof typeof rookieSalaryBySlot];
   if (slotScale) {
     if (slot && slot >= 1 && slot <= slotScale.length) {
       const value = slotScale[slot - 1];
@@ -30,22 +31,55 @@ export function rookiePickSalary(round: number, slot?: number) {
   return { min: value, max: value };
 }
 
-export function rookieDraftSalaryRange(picks: DraftPickAsset[], franchiseId: string, season: number) {
-  const owned = picks.filter((pick) => pick.currentFranchiseId === franchiseId && pick.season === season);
-  return owned.reduce((total, pick) => {
-    const salary = rookiePickSalary(pick.round, pick.slot);
-    return { min: total.min + salary.min, max: total.max + salary.max, picks: total.picks + 1 };
-  }, { min: 0, max: 0, picks: 0 });
+export function rookieDraftSalaryRange(
+  picks: DraftPickAsset[],
+  franchiseId: string,
+  season: number,
+) {
+  const owned = picks.filter(
+    (pick) => pick.currentFranchiseId === franchiseId && pick.season === season,
+  );
+  return owned.reduce(
+    (total, pick) => {
+      const salary = rookiePickSalary(pick.round, pick.slot);
+      return {
+        min: total.min + salary.min,
+        max: total.max + salary.max,
+        picks: total.picks + 1,
+      };
+    },
+    { min: 0, max: 0, picks: 0 },
+  );
 }
 
-export function draftCapital(picks: DraftPickAsset[], franchiseId: string, rounds = 5) {
-  const owned = picks.filter((pick) => pick.currentFranchiseId === franchiseId)
-    .sort((left, right) => left.season - right.season || left.round - right.round || left.originalFranchiseId.localeCompare(right.originalFranchiseId));
-  const tradedAway = picks.filter((pick) => pick.originalFranchiseId === franchiseId && pick.currentFranchiseId !== franchiseId);
+export function draftCapital(
+  picks: DraftPickAsset[],
+  franchiseId: string,
+  rounds = 5,
+) {
+  const owned = picks
+    .filter((pick) => pick.currentFranchiseId === franchiseId)
+    .sort(
+      (left, right) =>
+        left.season - right.season ||
+        left.round - right.round ||
+        left.originalFranchiseId.localeCompare(right.originalFranchiseId),
+    );
+  const tradedAway = picks.filter(
+    (pick) =>
+      pick.originalFranchiseId === franchiseId &&
+      pick.currentFranchiseId !== franchiseId,
+  );
   const years = [...new Set(picks.map((pick) => pick.season))].sort();
   const distribution = years.map((season) => ({
     season,
-    rounds: Array.from({ length: rounds }, (_, index) => owned.filter((pick) => pick.season === season && pick.round === index + 1).length),
+    rounds: Array.from(
+      { length: rounds },
+      (_, index) =>
+        owned.filter(
+          (pick) => pick.season === season && pick.round === index + 1,
+        ).length,
+    ),
     total: owned.filter((pick) => pick.season === season).length,
   }));
   const surplus = Array.from({ length: rounds }, (_, index) => {

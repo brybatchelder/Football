@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requirePermission } from "@/auth/permissions";
-import { getPlayerSyncHistory, syncNflversePlayers } from "@/nflverse/player-sync";
+import { AuthorizationError, requireApiPermission } from "@/auth/permissions";
+import {
+  getPlayerSyncHistory,
+  syncNflversePlayers,
+} from "@/nflverse/player-sync";
 
 const inputSchema = z.object({
   dryRun: z.boolean(),
@@ -10,17 +13,20 @@ const inputSchema = z.object({
 
 export async function GET() {
   try {
-    await requirePermission("manage_league");
+    await requireApiPermission("manage_league");
     return NextResponse.json({ runs: await getPlayerSyncHistory() });
-  } catch {
-    return NextResponse.json({ error: "Player sync history is unavailable" }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Player sync history is unavailable" },
+      { status: error instanceof AuthorizationError ? error.status : 400 },
+    );
   }
 }
 
 export async function POST(request: Request) {
   const correlationId = crypto.randomUUID();
   try {
-    await requirePermission("manage_league");
+    await requireApiPermission("manage_league");
     const input = inputSchema.parse(await request.json());
     const result = await syncNflversePlayers(input);
     return NextResponse.json({
@@ -32,9 +38,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         correlationId,
-        error: error instanceof z.ZodError ? "Invalid player sync request" : error instanceof Error ? error.message : "NFL player sync failed",
+        error:
+          error instanceof z.ZodError
+            ? "Invalid player sync request"
+            : error instanceof Error
+              ? error.message
+              : "NFL player sync failed",
       },
-      { status: 400 },
+      { status: error instanceof AuthorizationError ? error.status : 400 },
     );
   }
 }

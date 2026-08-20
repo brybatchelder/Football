@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { leagueLifecycle, lifecycleStages, nextLifecycleStage } from "./league-lifecycle";
+import {
+  leagueLifecycle,
+  lifecycleStages,
+  nextLifecycleStage,
+} from "./league-lifecycle";
 
 describe("league lifecycle", () => {
   it("keeps every stage in one deterministic order", () => {
@@ -10,6 +14,11 @@ describe("league lifecycle", () => {
 
   it("transitions final preseason compliance into the regular season", () => {
     expect(nextLifecycleStage("final-compliance")?.id).toBe("regular-season");
-    expect(leagueLifecycle.map((phase) => phase.id)).toEqual(["preseason", "regular-season", "postseason", "celebration"]);
+    expect(leagueLifecycle.map((phase) => phase.id)).toEqual([
+      "preseason",
+      "regular-season",
+      "postseason",
+      "celebration",
+    ]);
   });
 });

@@ -1,10 +1,17 @@
 import type { NormalizedPlayerSnapshot } from "@/domain/fantasy-stats";
 
-export type NflGame = { id: string; status: "scheduled" | "in_progress" | "final"; kickoffAt: Date };
+export type NflGame = {
+  id: string;
+  status: "scheduled" | "in_progress" | "final";
+  kickoffAt: Date;
+};
 export type NflDataProvider = {
   readonly name: string;
   activeGames(at: Date): Promise<NflGame[]>;
-  playerStatSnapshots(gameIds: string[], observedAt: Date): Promise<NormalizedPlayerSnapshot[]>;
+  playerStatSnapshots(
+    gameIds: string[],
+    observedAt: Date,
+  ): Promise<NormalizedPlayerSnapshot[]>;
 };
 
 /**
@@ -17,16 +24,23 @@ export class BalldontlieNflProvider implements NflDataProvider {
     private readonly apiKey: string,
     private readonly baseUrl: string,
     private readonly decodeGames: (payload: unknown) => NflGame[],
-    private readonly decodeSnapshots: (payload: unknown, observedAt: Date) => NormalizedPlayerSnapshot[],
+    private readonly decodeSnapshots: (
+      payload: unknown,
+      observedAt: Date,
+    ) => NormalizedPlayerSnapshot[],
   ) {}
 
   async activeGames(at: Date) {
-    const payload = await this.get(`/games?dates[]=${at.toISOString().slice(0, 10)}`);
+    const payload = await this.get(
+      `/games?dates[]=${at.toISOString().slice(0, 10)}`,
+    );
     return this.decodeGames(payload);
   }
   async playerStatSnapshots(gameIds: string[], observedAt: Date) {
     if (!gameIds.length) return [];
-    const query = gameIds.map((id) => `game_ids[]=${encodeURIComponent(id)}`).join("&");
+    const query = gameIds
+      .map((id) => `game_ids[]=${encodeURIComponent(id)}`)
+      .join("&");
     return this.decodeSnapshots(await this.get(`/stats?${query}`), observedAt);
   }
   private async get(path: string) {
@@ -34,7 +48,8 @@ export class BalldontlieNflProvider implements NflDataProvider {
       headers: { Authorization: this.apiKey },
       next: { revalidate: 0 },
     });
-    if (!response.ok) throw new Error(`BALLDONTLIE request failed (${response.status})`);
+    if (!response.ok)
+      throw new Error(`BALLDONTLIE request failed (${response.status})`);
     return response.json() as Promise<unknown>;
   }
 }

@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "owner_invitation_pending_franchise" ON "owner_invitations" USING btree ("email","league_season_id","franchise_id") WHERE "owner_invitations"."accepted_at" is null and "owner_invitations"."revoked_at" is null and "owner_invitations"."franchise_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "owner_invitation_pending_league" ON "owner_invitations" USING btree ("email","league_season_id") WHERE "owner_invitations"."accepted_at" is null and "owner_invitations"."revoked_at" is null and "owner_invitations"."franchise_id" is null;

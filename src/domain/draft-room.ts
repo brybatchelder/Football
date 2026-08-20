@@ -32,7 +32,12 @@ export function canDraftCurrentPick(
   userFranchiseId: string,
   currentOwnerId: string,
 ) {
-  if (role === "commissioner" || role === "assistant_commissioner" || role === "system_administrator") return true;
+  if (
+    role === "commissioner" ||
+    role === "assistant_commissioner" ||
+    role === "system_administrator"
+  )
+    return true;
   return role === "owner" && userFranchiseId === currentOwnerId;
 }
 
@@ -46,7 +51,13 @@ export function nextOwnedPick(
   franchiseId: string,
 ) {
   const index = picks.findIndex(
-    (pick, pickIndex) => pickIndex >= currentIndex && pick.currentOwnerId === franchiseId && pick.status !== "COMPLETED" && pick.status !== "SKIPPED",
+    (pick, pickIndex) =>
+      pickIndex >= currentIndex &&
+      pick.currentOwnerId === franchiseId &&
+      pick.status !== "COMPLETED" &&
+      pick.status !== "SKIPPED",
   );
-  return index < 0 ? undefined : { pick: picks[index], picksAway: index - currentIndex };
+  return index < 0
+    ? undefined
+    : { pick: picks[index], picksAway: index - currentIndex };
 }

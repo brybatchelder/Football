@@ -24,7 +24,11 @@ const logoCodes: Record<string, string> = {
   TBB: "TB",
 };
 
-export function TeamDisplayProvider({ children }: { children: React.ReactNode }) {
+export function TeamDisplayProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const mode = useSyncExternalStore(
     subscribeToTeamDisplay,
     readTeamDisplay,
@@ -36,7 +40,11 @@ export function TeamDisplayProvider({ children }: { children: React.ReactNode })
     teamDisplayListeners.forEach((listener) => listener());
   };
 
-  return <TeamDisplayContext value={{ mode, setMode }}>{children}</TeamDisplayContext>;
+  return (
+    <TeamDisplayContext value={{ mode, setMode }}>
+      {children}
+    </TeamDisplayContext>
+  );
 }
 
 function subscribeToTeamDisplay(listener: () => void) {
@@ -57,15 +65,41 @@ export function useTeamDisplay() {
   return useContext(TeamDisplayContext);
 }
 
-export function NflTeamMark({ team, className = "", modeOverride }: { team: string; className?: string; modeOverride?: TeamDisplayMode }) {
+export function NflTeamMark({
+  team,
+  className = "",
+  modeOverride,
+}: {
+  team: string;
+  className?: string;
+  modeOverride?: TeamDisplayMode;
+}) {
   const { mode } = useTeamDisplay();
   const displayMode = modeOverride ?? mode;
   const logoCode = logoCodes[team] ?? team;
   const hasLogo = team !== "FA";
 
   if (displayMode === "abbreviations" || !hasLogo) {
-    return <span className={`nfl-team-abbreviation ${className}`.trim()}>{team}</span>;
+    return (
+      <span className={`nfl-team-abbreviation ${className}`.trim()}>
+        {team}
+      </span>
+    );
   }
 
-  return <span className={`nfl-team-mark ${className}`.trim()} title={team} aria-label={`${team} NFL team`}><Image className="nfl-team-logo" src={`/images/logos/${logoCode}.png`} width={24} height={20} alt="" /></span>;
+  return (
+    <span
+      className={`nfl-team-mark ${className}`.trim()}
+      title={team}
+      aria-label={`${team} NFL team`}
+    >
+      <Image
+        className="nfl-team-logo"
+        src={`/images/logos/${logoCode}.png`}
+        width={24}
+        height={20}
+        alt=""
+      />
+    </span>
+  );
 }

@@ -1,10 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { draftCapital, rookieDraftSalaryRange, rookiePickSalary, type DraftPickAsset } from "./draft-capital";
+import {
+  draftCapital,
+  rookieDraftSalaryRange,
+  rookiePickSalary,
+  type DraftPickAsset,
+} from "./draft-capital";
 
 const picks: DraftPickAsset[] = [
-  { id: "a", season: 2027, round: 1, originalFranchiseId: "can", currentFranchiseId: "can" },
-  { id: "b", season: 2027, round: 1, originalFranchiseId: "sea", currentFranchiseId: "can" },
-  { id: "c", season: 2027, round: 2, originalFranchiseId: "can", currentFranchiseId: "det" },
+  {
+    id: "a",
+    season: 2027,
+    round: 1,
+    originalFranchiseId: "can",
+    currentFranchiseId: "can",
+  },
+  {
+    id: "b",
+    season: 2027,
+    round: 1,
+    originalFranchiseId: "sea",
+    currentFranchiseId: "can",
+  },
+  {
+    id: "c",
+    season: 2027,
+    round: 2,
+    originalFranchiseId: "can",
+    currentFranchiseId: "det",
+  },
 ];
 
 describe("draft capital", () => {
@@ -12,7 +35,10 @@ describe("draft capital", () => {
     const capital = draftCapital(picks, "can");
     expect(capital.owned.map((pick) => pick.id)).toEqual(["a", "b"]);
     expect(capital.tradedAway.map((pick) => pick.id)).toEqual(["c"]);
-    expect(capital.distribution[0]).toMatchObject({ total: 2, rounds: [2, 0, 0, 0, 0] });
+    expect(capital.distribution[0]).toMatchObject({
+      total: 2,
+      rounds: [2, 0, 0, 0, 0],
+    });
   });
 });
 
@@ -25,13 +51,53 @@ describe("rookie pick salaries", () => {
 
   it("returns the legal salary range while first-round slots are unknown", () => {
     const picks: DraftPickAsset[] = [
-      { id: "a", season: 2027, round: 1, originalFranchiseId: "can", currentFranchiseId: "can" },
-      { id: "b", season: 2027, round: 1, originalFranchiseId: "sea", currentFranchiseId: "can" },
-      { id: "c", season: 2027, round: 3, originalFranchiseId: "can", currentFranchiseId: "can" },
-      { id: "d", season: 2027, round: 3, originalFranchiseId: "hou", currentFranchiseId: "can" },
-      { id: "e", season: 2027, round: 4, originalFranchiseId: "can", currentFranchiseId: "can" },
-      { id: "f", season: 2027, round: 5, originalFranchiseId: "can", currentFranchiseId: "can" },
+      {
+        id: "a",
+        season: 2027,
+        round: 1,
+        originalFranchiseId: "can",
+        currentFranchiseId: "can",
+      },
+      {
+        id: "b",
+        season: 2027,
+        round: 1,
+        originalFranchiseId: "sea",
+        currentFranchiseId: "can",
+      },
+      {
+        id: "c",
+        season: 2027,
+        round: 3,
+        originalFranchiseId: "can",
+        currentFranchiseId: "can",
+      },
+      {
+        id: "d",
+        season: 2027,
+        round: 3,
+        originalFranchiseId: "hou",
+        currentFranchiseId: "can",
+      },
+      {
+        id: "e",
+        season: 2027,
+        round: 4,
+        originalFranchiseId: "can",
+        currentFranchiseId: "can",
+      },
+      {
+        id: "f",
+        season: 2027,
+        round: 5,
+        originalFranchiseId: "can",
+        currentFranchiseId: "can",
+      },
     ];
-    expect(rookieDraftSalaryRange(picks, "can", 2027)).toEqual({ min: 77, max: 149, picks: 6 });
+    expect(rookieDraftSalaryRange(picks, "can", 2027)).toEqual({
+      min: 77,
+      max: 149,
+      picks: 6,
+    });
   });
 });

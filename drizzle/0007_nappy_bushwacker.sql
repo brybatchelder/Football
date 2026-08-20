@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "franchise_league_abbreviation" ON "franchises" USING btree ("league_id","abbreviation");

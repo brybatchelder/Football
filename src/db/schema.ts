@@ -1,7 +1,9 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   date,
+  index,
   integer,
   jsonb,
   numeric,
@@ -59,20 +61,32 @@ export const accounts = pgTable("accounts", {
   providerId: text("provider_id").notNull(),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", {
+    withTimezone: true,
+  }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+    withTimezone: true,
+  }),
+  scope: text("scope"),
   password: text("password"),
   ...timestamps,
 });
-export const sessions = pgTable("sessions", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
-  token: text("token").unique().notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  ...timestamps,
-});
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    token: text("token").unique().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    ...timestamps,
+  },
+  (t) => [index("sessions_expires_at").on(t.expiresAt)],
+);
 export const userProfiles = pgTable("user_profiles", {
   userId: uuid("user_id")
     .primaryKey()
@@ -137,20 +151,49 @@ export const divisions = pgTable("divisions", {
   sortOrder: integer("sort_order").notNull(),
   ...timestamps,
 });
-export const franchises = pgTable("franchises", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  leagueId: uuid("league_id")
-    .references(() => leagues.id)
-    .notNull(),
-  name: text("name").notNull(),
-  slug: text("slug").notNull(),
-  abbreviation: text("abbreviation").notNull(),
-  ...timestamps,
-});
+export const franchises = pgTable(
+  "franchises",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    leagueId: uuid("league_id")
+      .references(() => leagues.id)
+      .notNull(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    abbreviation: text("abbreviation").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("franchise_league_slug").on(t.leagueId, t.slug),
+    uniqueIndex("franchise_league_abbreviation").on(t.leagueId, t.abbreviation),
+  ],
+);
+export const authVerifications = pgTable(
+  "auth_verifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (t) => [index("auth_verifications_expires_at").on(t.expiresAt)],
+);
+export const authRateLimits = pgTable(
+  "auth_rate_limits",
+  {
+    key: text("key").primaryKey(),
+    count: integer("count").default(0).notNull(),
+    lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+  },
+  (t) => [index("auth_rate_limits_last_request").on(t.lastRequest)],
+);
 /** Historical names are attributes of one continuing franchise, never a new identity. */
 export const franchiseAliases = pgTable("franchise_aliases", {
   id: uuid("id").defaultRandom().primaryKey(),
-  franchiseId: uuid("franchise_id").references(() => franchises.id).notNull(),
+  franchiseId: uuid("franchise_id")
+    .references(() => franchises.id)
+    .notNull(),
   name: text("name").notNull(),
   abbreviation: text("abbreviation"),
   effectiveFromSeason: integer("effective_from_season"),
@@ -158,32 +201,109 @@ export const franchiseAliases = pgTable("franchise_aliases", {
   source: text("source").notNull(),
   ...timestamps,
 });
-export const franchiseSeasons = pgTable("franchise_seasons", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  franchiseId: uuid("franchise_id")
-    .references(() => franchises.id)
-    .notNull(),
-  leagueSeasonId: uuid("league_season_id")
-    .references(() => leagueSeasons.id)
-    .notNull(),
-  divisionId: uuid("division_id").references(() => divisions.id),
-  active: boolean("active").default(true).notNull(),
-  ...timestamps,
-});
-export const franchiseMemberships = pgTable("franchise_memberships", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .references(() => users.id)
-    .notNull(),
-  franchiseId: uuid("franchise_id")
-    .references(() => franchises.id)
-    .notNull(),
-  leagueSeasonId: uuid("league_season_id")
-    .references(() => leagueSeasons.id)
-    .notNull(),
-  role: roleEnum("role").default("owner").notNull(),
-  ...timestamps,
-});
+export const franchiseSeasons = pgTable(
+  "franchise_seasons",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    franchiseId: uuid("franchise_id")
+      .references(() => franchises.id)
+      .notNull(),
+    leagueSeasonId: uuid("league_season_id")
+      .references(() => leagueSeasons.id)
+      .notNull(),
+    divisionId: uuid("division_id").references(() => divisions.id),
+    active: boolean("active").default(true).notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("franchise_season_unique").on(t.franchiseId, t.leagueSeasonId),
+  ],
+);
+export const leagueMemberships = pgTable(
+  "league_memberships",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    leagueId: uuid("league_id")
+      .references(() => leagues.id, { onDelete: "cascade" })
+      .notNull(),
+    role: roleEnum("role").default("owner").notNull(),
+    active: boolean("active").default(true).notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("league_membership_user_league").on(t.userId, t.leagueId),
+  ],
+);
+export const franchiseMemberships = pgTable(
+  "franchise_memberships",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    franchiseId: uuid("franchise_id")
+      .references(() => franchises.id, { onDelete: "cascade" })
+      .notNull(),
+    leagueSeasonId: uuid("league_season_id")
+      .references(() => leagueSeasons.id, { onDelete: "cascade" })
+      .notNull(),
+    role: roleEnum("role").default("owner").notNull(),
+    active: boolean("active").default(true).notNull(),
+    isPrimary: boolean("is_primary").default(false).notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("franchise_membership_user_franchise_season").on(
+      t.userId,
+      t.franchiseId,
+      t.leagueSeasonId,
+    ),
+    uniqueIndex("franchise_membership_primary_active")
+      .on(t.franchiseId, t.leagueSeasonId)
+      .where(sql`${t.isPrimary} = true and ${t.active} = true`),
+  ],
+);
+export const ownerInvitations = pgTable(
+  "owner_invitations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    leagueId: uuid("league_id")
+      .references(() => leagues.id, { onDelete: "cascade" })
+      .notNull(),
+    leagueSeasonId: uuid("league_season_id")
+      .references(() => leagueSeasons.id, { onDelete: "cascade" })
+      .notNull(),
+    franchiseId: uuid("franchise_id").references(() => franchises.id, {
+      onDelete: "cascade",
+    }),
+    email: text("email").notNull(),
+    role: roleEnum("role").default("owner").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    invitedByUserId: uuid("invited_by_user_id")
+      .references(() => users.id)
+      .notNull(),
+    acceptedByUserId: uuid("accepted_by_user_id").references(() => users.id),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("owner_invitation_pending_franchise")
+      .on(t.email, t.leagueSeasonId, t.franchiseId)
+      .where(
+        sql`${t.acceptedAt} is null and ${t.revokedAt} is null and ${t.franchiseId} is not null`,
+      ),
+    uniqueIndex("owner_invitation_pending_league")
+      .on(t.email, t.leagueSeasonId)
+      .where(
+        sql`${t.acceptedAt} is null and ${t.revokedAt} is null and ${t.franchiseId} is null`,
+      ),
+  ],
+);
 export const franchiseBranding = pgTable("franchise_branding", {
   franchiseId: uuid("franchise_id")
     .primaryKey()
@@ -256,6 +376,20 @@ export const providerPlayerIds = pgTable(
     externalId: text("external_id").notNull(),
   },
   (t) => [uniqueIndex("provider_player_external").on(t.provider, t.externalId)],
+);
+export const providerFranchiseIds = pgTable(
+  "provider_franchise_ids",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    franchiseId: uuid("franchise_id")
+      .references(() => franchises.id, { onDelete: "cascade" })
+      .notNull(),
+    provider: text("provider").notNull(),
+    externalId: text("external_id").notNull(),
+  },
+  (t) => [
+    uniqueIndex("provider_franchise_external").on(t.provider, t.externalId),
+  ],
 );
 
 export const rosterEntries = pgTable("roster_entries", {
@@ -408,22 +542,36 @@ export const fantasyMatchups = pgTable("fantasy_matchups", {
 });
 export const seasonResults = pgTable("season_results", {
   id: uuid("id").defaultRandom().primaryKey(),
-  franchiseSeasonId: uuid("franchise_season_id").references(() => franchiseSeasons.id).notNull(),
+  franchiseSeasonId: uuid("franchise_season_id")
+    .references(() => franchiseSeasons.id)
+    .notNull(),
   wins: integer("wins").default(0).notNull(),
   losses: integer("losses").default(0).notNull(),
   ties: integer("ties").default(0).notNull(),
-  pointsFor: numeric("points_for", { precision: 12, scale: 2 }).default("0").notNull(),
-  pointsAgainst: numeric("points_against", { precision: 12, scale: 2 }).default("0").notNull(),
+  pointsFor: numeric("points_for", { precision: 12, scale: 2 })
+    .default("0")
+    .notNull(),
+  pointsAgainst: numeric("points_against", { precision: 12, scale: 2 })
+    .default("0")
+    .notNull(),
   playoffFinish: text("playoff_finish"),
   finalRank: integer("final_rank"),
   ...timestamps,
 });
 export const championships = pgTable("championships", {
   id: uuid("id").defaultRandom().primaryKey(),
-  leagueSeasonId: uuid("league_season_id").references(() => leagueSeasons.id).notNull(),
-  championFranchiseSeasonId: uuid("champion_franchise_season_id").references(() => franchiseSeasons.id).notNull(),
-  runnerUpFranchiseSeasonId: uuid("runner_up_franchise_season_id").references(() => franchiseSeasons.id),
-  championshipMatchupId: uuid("championship_matchup_id").references(() => fantasyMatchups.id),
+  leagueSeasonId: uuid("league_season_id")
+    .references(() => leagueSeasons.id)
+    .notNull(),
+  championFranchiseSeasonId: uuid("champion_franchise_season_id")
+    .references(() => franchiseSeasons.id)
+    .notNull(),
+  runnerUpFranchiseSeasonId: uuid("runner_up_franchise_season_id").references(
+    () => franchiseSeasons.id,
+  ),
+  championshipMatchupId: uuid("championship_matchup_id").references(
+    () => fantasyMatchups.id,
+  ),
   ...timestamps,
 });
 export const lineupSubmissions = pgTable("lineup_submissions", {
@@ -483,8 +631,12 @@ export const playerWeekScores = pgTable("player_week_scores", {
 /** Immutable observation log: corrections create a new snapshot instead of overwriting history. */
 export const liveStatSnapshots = pgTable("live_stat_snapshots", {
   id: uuid("id").defaultRandom().primaryKey(),
-  playerId: uuid("player_id").references(() => players.id).notNull(),
-  nflGameId: uuid("nfl_game_id").references(() => nflGames.id).notNull(),
+  playerId: uuid("player_id")
+    .references(() => players.id)
+    .notNull(),
+  nflGameId: uuid("nfl_game_id")
+    .references(() => nflGames.id)
+    .notNull(),
   observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
   source: text("source").notNull(),
   sourceVersion: text("source_version"),
@@ -494,13 +646,18 @@ export const liveStatSnapshots = pgTable("live_stat_snapshots", {
 });
 export const liveEvents = pgTable("live_events", {
   id: uuid("id").defaultRandom().primaryKey(),
-  nflGameId: uuid("nfl_game_id").references(() => nflGames.id).notNull(),
+  nflGameId: uuid("nfl_game_id")
+    .references(() => nflGames.id)
+    .notNull(),
   playerId: uuid("player_id").references(() => players.id),
   snapshotId: uuid("snapshot_id").references(() => liveStatSnapshots.id),
   eventType: text("event_type").notNull(),
   confidence: text("confidence").notNull(),
   statDelta: jsonb("stat_delta").default({}).notNull(),
-  fantasyPointDelta: numeric("fantasy_point_delta", { precision: 12, scale: 2 }).notNull(),
+  fantasyPointDelta: numeric("fantasy_point_delta", {
+    precision: 12,
+    scale: 2,
+  }).notNull(),
   occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
   source: text("source").notNull(),
   enrichment: jsonb("enrichment").default({}).notNull(),
@@ -735,23 +892,34 @@ export const playerSyncRuns = pgTable("player_sync_runs", {
   playersSeen: integer("players_seen").default(0).notNull(),
   playersCreated: integer("players_created").default(0).notNull(),
   playersUpdated: integer("players_updated").default(0).notNull(),
-  rosterAttributesUpdated: integer("roster_attributes_updated").default(0).notNull(),
+  rosterAttributesUpdated: integer("roster_attributes_updated")
+    .default(0)
+    .notNull(),
   matchedAutomatically: integer("matched_automatically").default(0).notNull(),
   unmatchedCount: integer("unmatched_count").default(0).notNull(),
   reviewCount: integer("review_count").default(0).notNull(),
-  ownershipRecordsModified: integer("ownership_records_modified").default(0).notNull(),
-  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  ownershipRecordsModified: integer("ownership_records_modified")
+    .default(0)
+    .notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   errorMessage: text("error_message"),
 });
 export const playerSyncIssues = pgTable("player_sync_issues", {
   id: uuid("id").defaultRandom().primaryKey(),
-  playerSyncRunId: uuid("player_sync_run_id").references(() => playerSyncRuns.id).notNull(),
+  playerSyncRunId: uuid("player_sync_run_id")
+    .references(() => playerSyncRuns.id)
+    .notNull(),
   gsisId: text("gsis_id"),
   displayName: text("display_name"),
   code: text("code").notNull(),
   message: text("message").notNull(),
-  candidatePlayerIds: uuid("candidate_player_ids").array().default([]).notNull(),
+  candidatePlayerIds: uuid("candidate_player_ids")
+    .array()
+    .default([])
+    .notNull(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 });
 export const reconciliationIssues = pgTable("reconciliation_issues", {

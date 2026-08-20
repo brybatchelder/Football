@@ -56,8 +56,14 @@ export default async function SettingsPage({
 }: {
   params: Promise<{ section: string }>;
 }) {
-  await requirePermission("manage_league");
   const { section } = await params;
+  await requirePermission(
+    section === "operations"
+      ? "manage_platform"
+      : section === "franchises" || section === "owners"
+        ? "manage_owners"
+        : "manage_league",
+  );
   const item = content[section];
   if (!item)
     return (

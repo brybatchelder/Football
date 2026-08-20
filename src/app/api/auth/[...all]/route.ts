@@ -1,21 +1,13 @@
-import { createAuth } from "@/auth/better-auth";
-function unavailable() {
-  return Response.json(
-    { error: "Authentication database is unavailable" },
-    { status: 503 },
-  );
+import { toNextJsHandler } from "better-auth/next-js";
+import { getAuth } from "@/auth/better-auth";
+import { handleAuthRequestSafely } from "@/auth/safe-handler";
+import { assertProductionConfig } from "@/config/production";
+
+async function handler(request: Request) {
+  return handleAuthRequestSafely(async () => {
+    assertProductionConfig();
+    return await getAuth().handler(request);
+  });
 }
-export async function GET(request: Request) {
-  try {
-    return createAuth().handler(request);
-  } catch {
-    return unavailable();
-  }
-}
-export async function POST(request: Request) {
-  try {
-    return createAuth().handler(request);
-  } catch {
-    return unavailable();
-  }
-}
+
+export const { GET, POST, PATCH, PUT, DELETE } = toNextJsHandler(handler);

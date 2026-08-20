@@ -1,7 +1,10 @@
 import { getDb } from "./client";
 import {
   divisions,
+  franchiseMemberships,
+  franchiseSeasons,
   franchises,
+  leagueMemberships,
   leagueSeasons,
   leagues,
   salaryCapRules,
@@ -85,6 +88,23 @@ async function seed() {
       })),
     )
     .onConflictDoNothing();
+  const seededFranchises = await db.query.franchises.findMany({
+    where: (t, { eq }) => eq(t.leagueId, league.id),
+  });
+  const seededDivisions = await db.query.divisions.findMany({
+    where: (t, { eq }) => eq(t.leagueSeasonId, activeSeason.id),
+  });
+  for (const [index, franchise] of seededFranchises.entries()) {
+    await db
+      .insert(franchiseSeasons)
+      .values({
+        franchiseId: franchise.id,
+        leagueSeasonId: activeSeason.id,
+        divisionId: seededDivisions[index % seededDivisions.length]?.id,
+        active: true,
+      })
+      .onConflictDoNothing();
+  }
   await db
     .insert(salaryCapRules)
     .values({
@@ -95,15 +115,65 @@ async function seed() {
       contractYearCap: null,
     })
     .onConflictDoNothing();
-  await db
+  const [createdCommissioner] = await db
     .insert(users)
     .values({
       email: "commissioner@football.local",
       name: "Development Commissioner",
       emailVerified: true,
-      platformRole: "commissioner",
+      platformRole: "visitor",
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: users.email,
+      set: {
+        name: "Development Commissioner",
+        emailVerified: true,
+        platformRole: "visitor",
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
+  const commissioner =
+    createdCommissioner ??
+    (await db.query.users.findFirst({
+      where: (t, { eq }) => eq(t.email, "commissioner@football.local"),
+    }));
+  if (!commissioner) throw new Error("Commissioner seed failed");
+  await db
+    .insert(leagueMemberships)
+    .values({
+      userId: commissioner.id,
+      leagueId: league.id,
+      role: "commissioner",
+      active: true,
+    })
+    .onConflictDoUpdate({
+      target: [leagueMemberships.userId, leagueMemberships.leagueId],
+      set: { role: "commissioner", active: true, updatedAt: new Date() },
+    });
+  const canton = seededFranchises.find(
+    (franchise) => franchise.slug === "canton-legends",
+  );
+  if (canton) {
+    await db
+      .insert(franchiseMemberships)
+      .values({
+        userId: commissioner.id,
+        franchiseId: canton.id,
+        leagueSeasonId: activeSeason.id,
+        role: "owner",
+        active: true,
+        isPrimary: true,
+      })
+      .onConflictDoUpdate({
+        target: [
+          franchiseMemberships.userId,
+          franchiseMemberships.franchiseId,
+          franchiseMemberships.leagueSeasonId,
+        ],
+        set: { active: true, isPrimary: true, updatedAt: new Date() },
+      });
+  }
   console.log("Seeded Front Office Football League demo data.");
 }
 seed()

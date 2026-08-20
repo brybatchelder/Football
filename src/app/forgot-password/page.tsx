@@ -1,30 +1,20 @@
 import { Card, PageHeader } from "@/components/ui";
+import { PasswordResetRequestForm } from "@/components/auth-forms";
 export default function ForgotPage() {
   return (
     <div className="page" style={{ maxWidth: 720 }}>
       <PageHeader
         title="Reset password"
-        description="Password recovery delivery is prepared for the production authentication milestone."
+        description="Request a time-limited recovery link for your verified FOFL owner account."
       />
       <Card>
-        <form>
-          <div className="field">
-            <label>Email address</label>
-            <input
-              className="input"
-              type="email"
-              placeholder="owner@example.com"
-            />
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            style={{ marginTop: 15 }}
-          >
-            Request reset link
-          </button>
-        </form>
-        <p className="subtle">No email is sent in the demo environment.</p>
+        <PasswordResetRequestForm />
+        {process.env.NODE_ENV !== "production" && (
+          <p className="subtle">
+            Development requests are accepted, but delivery requires the email
+            environment variables used in production.
+          </p>
+        )}
       </Card>
     </div>
   );

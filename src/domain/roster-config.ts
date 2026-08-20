@@ -48,9 +48,7 @@ function normalizeRequiredLimit(value: unknown, fallback: number) {
 function normalizeOptionalLimit(value: unknown) {
   if (value === null || value === undefined || value === "") return null;
   const count = Number(value);
-  return Number.isInteger(count) && count >= 0 && count <= 200
-    ? count
-    : null;
+  return Number.isInteger(count) && count >= 0 && count <= 200 ? count : null;
 }
 
 export function normalizeRosterLimits(value: unknown): RosterLimits {

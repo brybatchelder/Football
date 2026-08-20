@@ -2,11 +2,12 @@ import { FeatureWorkspace } from "@/components/feature-workspace";
 import { PageHeader } from "@/components/ui";
 import { franchises } from "@/data/demo";
 import { loadPlayerPool } from "@/data/player-pool";
-import { currentRole } from "@/auth/permissions";
+import { currentViewer } from "@/auth/permissions";
+import { redirect } from "next/navigation";
 
 const descriptions: Record<string, string> = {
   "my-team":
-    "Manage Canton like a front office: lineup, contracts, draft capital, competitive window, and franchise history.",
+    "Manage your franchise like a front office: lineup, contracts, draft capital, competitive window, and franchise history.",
   gameday:
     "Follow every FOFL matchup with live league context, rivalry history, playoff leverage, and record alerts.",
   players:
@@ -56,30 +57,48 @@ export default async function FeaturePage({
   params: Promise<{ section: string; slug?: string[] }>;
 }) {
   const { section, slug } = await params;
-  const role = await currentRole();
+  const viewer = await currentViewer();
+  if (section === "my-team" && !viewer.authenticated) {
+    const returnTo = `/my-team/${slug?.join("/") ?? "overview"}`;
+    redirect(
+      `/sign-in?reason=authentication&next=${encodeURIComponent(returnTo)}`,
+    );
+  }
   const feature = slug?.[0] ?? defaultFeature(section);
-  const playerPool = await loadPlayerPool(Number(process.env.MFL_SEASON ?? 2026));
+  const playerPool = await loadPlayerPool(
+    Number(process.env.MFL_SEASON ?? 2026),
+  );
   const description =
     section === "preferences"
       ? "Choose how Football displays league and player information on this device."
       : section === "my-team" && feature === "lineup"
-      ? "Set your Week 1 starters. Players lock at their scheduled kickoff."
-      : descriptions[section] ?? "FOFL league operations and analysis.";
+        ? "Set your Week 1 starters. Players lock at their scheduled kickoff."
+        : (descriptions[section] ?? "FOFL league operations and analysis.");
   const usesContextStripOnly = section === "draft-auction" && feature === "rfa";
   return (
     <div className="page">
-      {!usesContextStripOnly && <PageHeader
-        eyebrow={section.replaceAll("-", " ")}
-        title={section === "preferences" ? "Preferences" : featureNames[feature] ?? titleCase(feature)}
-        description={description}
-      />}
+      {!usesContextStripOnly && (
+        <PageHeader
+          eyebrow={section.replaceAll("-", " ")}
+          title={
+            section === "preferences"
+              ? "Preferences"
+              : (featureNames[feature] ?? titleCase(feature))
+          }
+          description={description}
+        />
+      )}
       <FeatureWorkspace
         section={section}
         feature={feature}
         players={playerPool.players}
         playerPoolSource={playerPool.source}
         franchises={franchises}
-        role={role}
+        role={viewer.role}
+        ownerFranchiseId={viewer.activeFranchise?.slug ?? "__unassigned__"}
+        ownerFranchiseName={
+          viewer.activeFranchise?.name ?? "No franchise assigned"
+        }
       />
     </div>
   );

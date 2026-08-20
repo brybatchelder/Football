@@ -1,13 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/e2e",
+  globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: true,
   use: { baseURL: "http://127.0.0.1:3000", trace: "on-first-retry" },
-  webServer: {
-    command: "pnpm dev",
-    url: "http://127.0.0.1:3000/api/health",
-    reuseExistingServer: true,
-    timeout: 120000,
-  },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });

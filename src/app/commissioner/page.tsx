@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/ui";
 import { requirePermission } from "@/auth/permissions";
+import { hasPermission } from "@/domain/league-rules";
 
 const areas = [
   [
@@ -119,7 +120,14 @@ const areas = [
   ],
 ] as const;
 export default async function CommissionerPage() {
-  await requirePermission("manage_league");
+  const viewer = await requirePermission("manage_league");
+  const visibleAreas = areas.filter(([, , slug]) => {
+    if (slug === "franchises")
+      return hasPermission(viewer.role, "manage_owners");
+    if (slug === "operations")
+      return hasPermission(viewer.role, "manage_platform");
+    return true;
+  });
   return (
     <div className="page">
       <PageHeader
@@ -133,12 +141,12 @@ export default async function CommissionerPage() {
         }
       />
       <div className="notice" style={{ marginBottom: 14 }}>
-        Development access: sign in as Commissioner to use these routes. Changes
-        are server-authorized and will produce audit entries when PostgreSQL is
-        connected.
+        Signed in with {viewer.role.replaceAll("_", " ")} access. Every route
+        enforces its own permission, and durable changes are audited when
+        PostgreSQL is connected.
       </div>
       <div className="setup-grid">
-        {areas.map(([title, description, slug, status, Icon]) => (
+        {visibleAreas.map(([title, description, slug, status, Icon]) => (
           <section className="card setup-card" key={slug}>
             <div className="setup-card-top">
               <span className="setup-icon">
@@ -157,7 +165,9 @@ export default async function CommissionerPage() {
               href={
                 slug === "imports"
                   ? "/commissioner/imports"
-                  : `/commissioner/settings/${slug}`
+                  : slug === "franchises"
+                    ? "/commissioner/owners"
+                    : `/commissioner/settings/${slug}`
               }
             >
               Configure →

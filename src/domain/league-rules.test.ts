@@ -51,6 +51,10 @@ describe("league rules", () => {
   it("enforces permission ranks", () => {
     expect(hasPermission("owner", "manage_league")).toBe(false);
     expect(hasPermission("assistant_commissioner", "manage_league")).toBe(true);
+    expect(hasPermission("assistant_commissioner", "manage_owners")).toBe(
+      false,
+    );
+    expect(hasPermission("commissioner", "manage_owners")).toBe(true);
     expect(hasPermission("system_administrator", "manage_platform")).toBe(true);
   });
   it("calculates stable scoring and victory rank", () => {

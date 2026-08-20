@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { currentRole } from "@/auth/permissions";
+import { currentViewer } from "@/auth/permissions";
 import { AppShell } from "@/components/app-shell";
 import { TeamDisplayProvider } from "@/components/team-display";
 
@@ -15,12 +15,12 @@ export const metadata: Metadata = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const role = await currentRole();
+  const viewer = await currentViewer();
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
         <TeamDisplayProvider>
-          <AppShell role={role}>{children}</AppShell>
+          <AppShell viewer={viewer}>{children}</AppShell>
         </TeamDisplayProvider>
       </body>
     </html>

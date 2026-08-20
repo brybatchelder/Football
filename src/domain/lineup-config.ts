@@ -165,7 +165,11 @@ export function movePlayerToLineupSlot(
 ) {
   const targetSlot = slots.find((slot) => slot.key === targetSlotKey);
   const player = players.find((candidate) => candidate.id === playerId);
-  if (!targetSlot || !player || !targetSlot.eligible.includes(player.position)) {
+  if (
+    !targetSlot ||
+    !player ||
+    !targetSlot.eligible.includes(player.position)
+  ) {
     return assignments;
   }
 

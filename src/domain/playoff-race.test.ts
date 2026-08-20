@@ -11,14 +11,34 @@ const teams = [
 
 describe("playoff race", () => {
   it("seeds division leaders before wild cards and identifies first out", () => {
-    const race = seedPlayoffField(teams, { playoffTeams: 4, divisionWinners: 3, byeTeams: 2 });
-    expect(race.field.map((team) => team.id)).toEqual(["east", "central", "west", "wild"]);
+    const race = seedPlayoffField(teams, {
+      playoffTeams: 4,
+      divisionWinners: 3,
+      byeTeams: 2,
+    });
+    expect(race.field.map((team) => team.id)).toEqual([
+      "east",
+      "central",
+      "west",
+      "wild",
+    ]);
     expect(race.firstOut?.id).toBe("out");
   });
   it("creates byes and high-versus-low first-round pairings", () => {
-    const race = seedPlayoffField(teams, { playoffTeams: 4, divisionWinners: 3, byeTeams: 2 });
-    const bracket = projectedBracket(race.field, { playoffTeams: 4, divisionWinners: 3, byeTeams: 2 });
+    const race = seedPlayoffField(teams, {
+      playoffTeams: 4,
+      divisionWinners: 3,
+      byeTeams: 2,
+    });
+    const bracket = projectedBracket(race.field, {
+      playoffTeams: 4,
+      divisionWinners: 3,
+      byeTeams: 2,
+    });
     expect(bracket.byes.map((team) => team.id)).toEqual(["east", "central"]);
-    expect(bracket.matchups[0]).toMatchObject({ higherSeed: { id: "west" }, lowerSeed: { id: "wild" } });
+    expect(bracket.matchups[0]).toMatchObject({
+      higherSeed: { id: "west" },
+      lowerSeed: { id: "wild" },
+    });
   });
 });

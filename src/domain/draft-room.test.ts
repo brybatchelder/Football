@@ -1,9 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { canDraftCurrentPick, nextOwnedPick, pickLabel, type DraftRoomPick } from "./draft-room";
+import {
+  canDraftCurrentPick,
+  nextOwnedPick,
+  pickLabel,
+  type DraftRoomPick,
+} from "./draft-room";
 
 const picks: DraftRoomPick[] = [
-  { id: "5.11", round: 5, slot: 11, currentOwnerId: "detroit", originalOwnerId: "detroit", status: "ON_CLOCK" },
-  { id: "5.12", round: 5, slot: 12, currentOwnerId: "canton", originalOwnerId: "seattle", status: "UPCOMING" },
+  {
+    id: "5.11",
+    round: 5,
+    slot: 11,
+    currentOwnerId: "detroit",
+    originalOwnerId: "detroit",
+    status: "ON_CLOCK",
+  },
+  {
+    id: "5.12",
+    round: 5,
+    slot: 12,
+    currentOwnerId: "canton",
+    originalOwnerId: "seattle",
+    status: "UPCOMING",
+  },
 ];
 
 describe("draft room rules", () => {

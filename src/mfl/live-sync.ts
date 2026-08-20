@@ -3,6 +3,7 @@ import { getDb } from "@/db/client";
 import {
   contracts,
   divisions,
+  franchiseAliases,
   franchiseSeasons,
   franchises,
   importRecords,
@@ -16,6 +17,7 @@ import {
   playerSeasons,
   playerTags,
   providerConnections,
+  providerFranchiseIds,
   providerPlayerIds,
   reconciliationIssues,
   rosterEntries,
@@ -98,20 +100,22 @@ function position(value?: string): Position | null {
 function nflTeam(value?: string) {
   const team = value?.toUpperCase() ?? "FA";
   return (
-    {
-      ARI: "ARI",
-      AZ: "ARI",
-      GBP: "GB",
-      JAC: "JAX",
-      KCC: "KC",
-      LA: "LAR",
-      LVR: "LV",
-      NEP: "NE",
-      NOS: "NO",
-      SFO: "SF",
-      TBB: "TB",
-    } as Record<string, string>
-  )[team] ?? team;
+    (
+      {
+        ARI: "ARI",
+        AZ: "ARI",
+        GBP: "GB",
+        JAC: "JAX",
+        KCC: "KC",
+        LA: "LAR",
+        LVR: "LV",
+        NEP: "NE",
+        NOS: "NO",
+        SFO: "SF",
+        TBB: "TB",
+      } as Record<string, string>
+    )[team] ?? team
+  );
 }
 
 function matchKey(name: string, playerPosition: Position, team: string) {
@@ -133,7 +137,8 @@ async function fetchJson<T>(url: string): Promise<T> {
     cache: "no-store",
     headers: { "user-agent": "FOFL-MFL-sync/1.0" },
   });
-  if (!response.ok) throw new Error(`MFL returned ${response.status} for ${url}`);
+  if (!response.ok)
+    throw new Error(`MFL returned ${response.status} for ${url}`);
   return (await response.json()) as T;
 }
 
@@ -143,7 +148,12 @@ async function sources(baseUrl: string, leagueId: string, season: number) {
   const [leagueJson, rosterJson, playersJson, nflverseCsv] = await Promise.all([
     fetchJson<{ league: Record<string, unknown> }>(exportUrl("league")),
     fetchJson<{
-      rosters: { franchise?: { id: string; player?: MflRosterPlayer | MflRosterPlayer[] }[] };
+      rosters: {
+        franchise?: {
+          id: string;
+          player?: MflRosterPlayer | MflRosterPlayer[];
+        }[];
+      };
     }>(exportUrl("rosters")),
     fetchJson<{ players: { player?: MflPlayer | MflPlayer[] } }>(
       exportUrl("players", "&DETAILS=1"),
@@ -183,24 +193,39 @@ export async function syncMflRoster({
 }): Promise<MflSyncResult> {
   const db = getDb();
   const source = await sources(baseUrl.replace(/\/$/, ""), leagueId, season);
-  const mflPlayerById = new Map(source.mflPlayers.map((player) => [player.id, player]));
+  const mflPlayerById = new Map(
+    source.mflPlayers.map((player) => [player.id, player]),
+  );
   const gsisByEspn = new Map(
     source.nflverseRows
       .filter((row) => row.espn_id && row.gsis_id)
       .map((row) => [row.espn_id, row.gsis_id]),
   );
 
-  let [league] = await db.select().from(leagues).where(eq(leagues.slug, "fofl")).limit(1);
+  let [league] = await db
+    .select()
+    .from(leagues)
+    .where(eq(leagues.slug, "fofl"))
+    .limit(1);
   if (!league) {
     [league] = await db
       .insert(leagues)
-      .values({ name: source.league.name, slug: "fofl", timezone: "America/Chicago" })
+      .values({
+        name: source.league.name,
+        slug: "fofl",
+        timezone: "America/Chicago",
+      })
       .returning();
   }
   let [leagueSeason] = await db
     .select()
     .from(leagueSeasons)
-    .where(and(eq(leagueSeasons.leagueId, league.id), eq(leagueSeasons.year, season)))
+    .where(
+      and(
+        eq(leagueSeasons.leagueId, league.id),
+        eq(leagueSeasons.year, season),
+      ),
+    )
     .limit(1);
   if (!leagueSeason) {
     [leagueSeason] = await db
@@ -270,7 +295,9 @@ export async function syncMflRoster({
         ),
       )
       .where(eq(playerSeasons.year, season));
-    const byGsis = new Map(masterRows.filter((row) => row.gsisId).map((row) => [row.gsisId!, row]));
+    const byGsis = new Map(
+      masterRows.filter((row) => row.gsisId).map((row) => [row.gsisId!, row]),
+    );
     const exact = new Map<string, typeof masterRows>();
     for (const row of masterRows) {
       const pos = position(row.position ?? undefined);
@@ -283,7 +310,10 @@ export async function syncMflRoster({
       exact.set(key, [...(exact.get(key) ?? []), row]);
     }
     const existingMflIds = await db
-      .select({ playerId: providerPlayerIds.playerId, externalId: providerPlayerIds.externalId })
+      .select({
+        playerId: providerPlayerIds.playerId,
+        externalId: providerPlayerIds.externalId,
+      })
       .from(providerPlayerIds)
       .where(eq(providerPlayerIds.provider, "mfl"));
     const playerById = new Map(masterRows.map((row) => [row.playerId, row]));
@@ -306,12 +336,17 @@ export async function syncMflRoster({
       mfl: MflPlayer;
       master: (typeof masterRows)[number];
     }> = [];
-    const issues: Array<{ externalId: string; message: string; raw: unknown }> = [];
+    const issues: Array<{ externalId: string; message: string; raw: unknown }> =
+      [];
     for (const franchiseRoster of source.rosters) {
       for (const roster of list(franchiseRoster.player)) {
         const mfl = mflPlayerById.get(roster.id);
         if (!mfl) {
-          issues.push({ externalId: roster.id, message: "MFL roster player is absent from the MFL player export.", raw: roster });
+          issues.push({
+            externalId: roster.id,
+            message: "MFL roster player is absent from the MFL player export.",
+            raw: roster,
+          });
           continue;
         }
         let master = byMfl.get(roster.id);
@@ -322,7 +357,9 @@ export async function syncMflRoster({
         if (!master) {
           const pos = position(mfl.position);
           const candidates = pos
-            ? exact.get(matchKey(displayName(mfl.name), pos, mfl.team ?? "FA")) ?? []
+            ? (exact.get(
+                matchKey(displayName(mfl.name), pos, mfl.team ?? "FA"),
+              ) ?? [])
             : [];
           if (candidates.length === 1) master = candidates[0];
         }
@@ -372,13 +409,37 @@ export async function syncMflRoster({
           divisionIds.set(sourceDivision.id, division.id);
         }
         const franchiseSeasonIds = new Map<string, string>();
+        const franchiseProvider = `mfl:${leagueId}`;
         for (const sourceFranchise of source.franchises) {
           const franchiseSlug = slug(sourceFranchise.name);
-          let [franchise] = await tx
-            .select()
-            .from(franchises)
-            .where(and(eq(franchises.leagueId, league.id), eq(franchises.slug, franchiseSlug)))
+          const [providerIdentity] = await tx
+            .select({ franchise: franchises })
+            .from(providerFranchiseIds)
+            .innerJoin(
+              franchises,
+              eq(franchises.id, providerFranchiseIds.franchiseId),
+            )
+            .where(
+              and(
+                eq(providerFranchiseIds.provider, franchiseProvider),
+                eq(providerFranchiseIds.externalId, sourceFranchise.id),
+                eq(franchises.leagueId, league.id),
+              ),
+            )
             .limit(1);
+          let franchise = providerIdentity?.franchise;
+          if (!franchise) {
+            [franchise] = await tx
+              .select()
+              .from(franchises)
+              .where(
+                and(
+                  eq(franchises.leagueId, league.id),
+                  eq(franchises.slug, franchiseSlug),
+                ),
+              )
+              .limit(1);
+          }
           if (!franchise) {
             [franchise] = await tx
               .insert(franchises)
@@ -394,8 +455,39 @@ export async function syncMflRoster({
                   .toUpperCase(),
               })
               .returning();
-          } else if (franchise.name !== sourceFranchise.name) {
-            await tx.update(franchises).set({ name: sourceFranchise.name }).where(eq(franchises.id, franchise.id));
+          }
+          if (!providerIdentity) {
+            await tx
+              .insert(providerFranchiseIds)
+              .values({
+                franchiseId: franchise.id,
+                provider: franchiseProvider,
+                externalId: sourceFranchise.id,
+              })
+              .onConflictDoNothing();
+          }
+          if (franchise.name !== sourceFranchise.name) {
+            const existingAlias = await tx.query.franchiseAliases.findFirst({
+              where: and(
+                eq(franchiseAliases.franchiseId, franchise.id),
+                eq(franchiseAliases.name, franchise.name),
+                eq(franchiseAliases.effectiveToSeason, season - 1),
+              ),
+            });
+            if (!existingAlias) {
+              await tx.insert(franchiseAliases).values({
+                franchiseId: franchise.id,
+                name: franchise.name,
+                abbreviation: franchise.abbreviation,
+                effectiveToSeason: season - 1,
+                source: "mfl",
+              });
+            }
+            [franchise] = await tx
+              .update(franchises)
+              .set({ name: sourceFranchise.name, updatedAt: new Date() })
+              .where(eq(franchises.id, franchise.id))
+              .returning();
           }
           let [franchiseSeason] = await tx
             .select()
@@ -418,6 +510,20 @@ export async function syncMflRoster({
                   : undefined,
               })
               .returning();
+          } else {
+            const divisionId = sourceFranchise.division
+              ? divisionIds.get(sourceFranchise.division)
+              : null;
+            if (
+              !franchiseSeason.active ||
+              franchiseSeason.divisionId !== divisionId
+            ) {
+              [franchiseSeason] = await tx
+                .update(franchiseSeasons)
+                .set({ active: true, divisionId, updatedAt: new Date() })
+                .where(eq(franchiseSeasons.id, franchiseSeason.id))
+                .returning();
+            }
           }
           franchiseSeasonIds.set(sourceFranchise.id, franchiseSeason.id);
         }
@@ -465,7 +571,11 @@ export async function syncMflRoster({
           if (!ownership) {
             const [created] = await tx
               .insert(rosterEntries)
-              .values({ franchiseSeasonId, playerSeasonId: item.master.playerSeasonId, status })
+              .values({
+                franchiseSeasonId,
+                playerSeasonId: item.master.playerSeasonId,
+                status,
+              })
               .returning({ id: rosterEntries.id });
             rosterEntryId = created.id;
             ownershipCreated += 1;
@@ -480,19 +590,35 @@ export async function syncMflRoster({
 
           await tx
             .insert(providerPlayerIds)
-            .values({ playerId: item.master.playerId, provider: "mfl", externalId: item.roster.id })
+            .values({
+              playerId: item.master.playerId,
+              provider: "mfl",
+              externalId: item.roster.id,
+            })
             .onConflictDoNothing();
 
           const [currentSalary] = await tx
             .select()
             .from(salaries)
-            .where(and(eq(salaries.rosterEntryId, rosterEntryId), isNull(salaries.effectiveTo)))
+            .where(
+              and(
+                eq(salaries.rosterEntryId, rosterEntryId),
+                isNull(salaries.effectiveTo),
+              ),
+            )
             .limit(1);
           const salary = item.roster.salary || "0";
           if (currentSalary) {
-            await tx.update(salaries).set({ amount: salary }).where(eq(salaries.id, currentSalary.id));
+            await tx
+              .update(salaries)
+              .set({ amount: salary })
+              .where(eq(salaries.id, currentSalary.id));
           } else {
-            await tx.insert(salaries).values({ rosterEntryId, amount: salary, effectiveFrom: `${season}-01-01` });
+            await tx.insert(salaries).values({
+              rosterEntryId,
+              amount: salary,
+              effectiveFrom: `${season}-01-01`,
+            });
           }
           salariesUpdated += 1;
 
@@ -501,11 +627,23 @@ export async function syncMflRoster({
             const [currentContract] = await tx
               .select()
               .from(contracts)
-              .where(and(eq(contracts.rosterEntryId, rosterEntryId), eq(contracts.status, "active")))
+              .where(
+                and(
+                  eq(contracts.rosterEntryId, rosterEntryId),
+                  eq(contracts.status, "active"),
+                ),
+              )
               .limit(1);
-            const values = { startYear: season, endYear: season + years - 1, totalYears: years };
+            const values = {
+              startYear: season,
+              endYear: season + years - 1,
+              totalYears: years,
+            };
             if (currentContract) {
-              await tx.update(contracts).set({ ...values, updatedAt: new Date() }).where(eq(contracts.id, currentContract.id));
+              await tx
+                .update(contracts)
+                .set({ ...values, updatedAt: new Date() })
+                .where(eq(contracts.id, currentContract.id));
             } else {
               await tx.insert(contracts).values({ rosterEntryId, ...values });
             }
@@ -514,7 +652,12 @@ export async function syncMflRoster({
 
           await tx
             .delete(playerTags)
-            .where(and(eq(playerTags.rosterEntryId, rosterEntryId), eq(playerTags.season, season)));
+            .where(
+              and(
+                eq(playerTags.rosterEntryId, rosterEntryId),
+                eq(playerTags.season, season),
+              ),
+            );
           if (item.roster.contractStatus) {
             await tx.insert(playerTags).values({
               rosterEntryId,
@@ -535,7 +678,10 @@ export async function syncMflRoster({
                 ),
               )
               .limit(1);
-            if (!assignment) await tx.insert(taxiSquadAssignments).values({ rosterEntryId, startsAt: new Date() });
+            if (!assignment)
+              await tx
+                .insert(taxiSquadAssignments)
+                .values({ rosterEntryId, startsAt: new Date() });
           }
           if (status === "injured_reserve") {
             const [assignment] = await tx
@@ -548,13 +694,18 @@ export async function syncMflRoster({
                 ),
               )
               .limit(1);
-            if (!assignment) await tx.insert(injuredReserveAssignments).values({ rosterEntryId, startsAt: new Date() });
+            if (!assignment)
+              await tx
+                .insert(injuredReserveAssignments)
+                .values({ rosterEntryId, startsAt: new Date() });
           }
         }
 
         for (const ownership of existingOwnership) {
           const master = playerBySeasonId.get(ownership.playerSeasonId);
-          const mflId = master ? mflIdByPlayerId.get(master.playerId) : undefined;
+          const mflId = master
+            ? mflIdByPlayerId.get(master.playerId)
+            : undefined;
           if (mflId && !incomingMflIds.has(mflId)) {
             await tx
               .update(rosterEntries)
@@ -607,8 +758,9 @@ export async function syncMflRoster({
       tagsUpdated,
       unmatchedPlayers: issues.map((issue) => ({
         mflId: issue.externalId,
-        name:
-          displayName(mflPlayerById.get(issue.externalId)?.name ?? "Unknown player"),
+        name: displayName(
+          mflPlayerById.get(issue.externalId)?.name ?? "Unknown player",
+        ),
         reason: issue.message,
       })),
     };
@@ -627,7 +779,8 @@ export async function syncMflRoster({
       .set({
         status: "failed",
         completedAt: new Date(),
-        error: error instanceof Error ? error.message : "Unknown MFL sync error",
+        error:
+          error instanceof Error ? error.message : "Unknown MFL sync error",
       })
       .where(eq(importRuns.id, run.id));
     throw error;

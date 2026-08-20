@@ -1,17 +1,9 @@
 "use client";
 import Link from "next/link";
-import {
-  Bell,
-  Menu,
-  Moon,
-  ShieldCheck,
-  Sun,
-  UserRound,
-  X,
-} from "lucide-react";
+import { Bell, Menu, Moon, ShieldCheck, Sun, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { AppRole } from "@/domain/types";
+import type { ViewerContext } from "@/auth/permissions";
 import { mostSpecificNavigationItem } from "@/domain/navigation";
 
 const nav = [
@@ -90,10 +82,10 @@ const nav = [
 ] as const;
 export function AppShell({
   children,
-  role,
+  viewer,
 }: {
   children: React.ReactNode;
-  role: AppRole;
+  viewer: ViewerContext;
 }) {
   const [open, setOpen] = useState(false);
   const [dark, setDark] = useState(false);
@@ -101,17 +93,31 @@ export function AppShell({
   const [switchingRole, setSwitchingRole] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const rosterHref = viewer.activeFranchise
+    ? `/franchises/${viewer.activeFranchise.slug}`
+    : "/league/rosters";
+  const resolvedNav = nav.map((group) => ({
+    ...group,
+    items: group.items.map(
+      ([label, href]) =>
+        [label, label === "Roster" ? rosterHref : href] as const,
+    ),
+  }));
   const navItems: (readonly [string, string])[] = [];
-  nav.forEach((group) => navItems.push(...group.items));
+  resolvedNav.forEach((group) => navItems.push(...group.items));
   const activeItem = mostSpecificNavigationItem(pathname, navItems);
-  const activeGroup = nav.find((group) =>
+  const activeGroup = resolvedNav.find((group) =>
     group.items.some(([, href]) => href === activeItem?.[1]),
   );
   const locationLabel = activeItem?.[0] ?? routeLocation(pathname);
-  const lifecycleLabel = pathname === "/draft-auction/rfa"
-    ? "2027 Preseason · RFA — Assign Tags"
-    : "2026 Preseason · Final Roster Compliance";
-  const canManageLeague = role === "commissioner" || role === "assistant_commissioner";
+  const lifecycleLabel =
+    pathname === "/draft-auction/rfa"
+      ? "2027 Preseason · RFA — Assign Tags"
+      : "2026 Preseason · Final Roster Compliance";
+  const canManageLeague =
+    viewer.role === "commissioner" ||
+    viewer.role === "assistant_commissioner" ||
+    viewer.role === "system_administrator";
   useEffect(() => {
     const saved = localStorage.getItem("football-theme") === "dark";
     document.documentElement.classList.toggle("dark", saved);
@@ -148,6 +154,17 @@ export function AppShell({
       setSwitchingRole(false);
     }
   }
+  async function switchFranchise(slug: string) {
+    const response = await fetch("/api/auth/select-franchise", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ slug }),
+    });
+    if (!response.ok) return;
+    setProfileOpen(false);
+    router.push(`/franchises/${slug}`);
+    router.refresh();
+  }
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -160,7 +177,7 @@ export function AppShell({
             </span>
           </Link>
           <nav className="desktop-nav" aria-label="Primary">
-            {nav.map((group) => (
+            {resolvedNav.map((group) => (
               <div className="nav-group" key={group.label}>
                 <Link
                   className={`nav-group-link ${activeGroup?.label === group.label ? "active" : ""}`}
@@ -173,7 +190,9 @@ export function AppShell({
                   {group.items.map(([label, href]) => (
                     <Link
                       className={activeItem?.[1] === href ? "active" : ""}
-                      aria-current={activeItem?.[1] === href ? "page" : undefined}
+                      aria-current={
+                        activeItem?.[1] === href ? "page" : undefined
+                      }
                       key={href}
                       href={href}
                       onClick={(event) => event.currentTarget.blur()}
@@ -215,11 +234,67 @@ export function AppShell({
               </button>
               {profileOpen && (
                 <div className="profile-dropdown">
-                  <Link href="/my-team/overview" onClick={() => setProfileOpen(false)}>Profile</Link>
-                  <Link href="/preferences" onClick={() => setProfileOpen(false)}>Preferences</Link>
-                  {canManageLeague && <button disabled={switchingRole} onClick={() => void switchRole("owner")}>{switchingRole ? "Switching…" : "Become Owner"}</button>}
-                  {!canManageLeague && <button disabled={switchingRole} onClick={() => void switchRole("commissioner")}>{switchingRole ? "Switching…" : "Become Commissioner"}</button>}
-                  <button className="profile-logout" onClick={() => setProfileOpen(false)}>Logout</button>
+                  {viewer.user && (
+                    <div className="profile-identity">
+                      <strong>{viewer.user.name}</strong>
+                      <span>{viewer.user.email}</span>
+                      <small>{viewer.role.replaceAll("_", " ")}</small>
+                    </div>
+                  )}
+                  {viewer.franchises.length > 1 && (
+                    <label className="profile-franchise-select">
+                      Active franchise
+                      <select
+                        className="select"
+                        onChange={(event) =>
+                          void switchFranchise(event.target.value)
+                        }
+                        value={viewer.activeFranchise?.slug ?? ""}
+                      >
+                        {viewer.franchises.map((franchise) => (
+                          <option key={franchise.id} value={franchise.slug}>
+                            {franchise.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  <Link href="/account" onClick={() => setProfileOpen(false)}>
+                    Account
+                  </Link>
+                  <Link
+                    href="/preferences"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    Preferences
+                  </Link>
+                  {viewer.source === "development" && canManageLeague && (
+                    <button
+                      disabled={switchingRole}
+                      onClick={() => void switchRole("owner")}
+                    >
+                      {switchingRole ? "Switching…" : "Become Owner"}
+                    </button>
+                  )}
+                  {viewer.source === "development" && !canManageLeague && (
+                    <button
+                      disabled={switchingRole}
+                      onClick={() => void switchRole("commissioner")}
+                    >
+                      {switchingRole ? "Switching…" : "Become Commissioner"}
+                    </button>
+                  )}
+                  {viewer.authenticated ? (
+                    <form action="/api/auth/sign-out" method="post">
+                      <button className="profile-logout" type="submit">
+                        Sign out
+                      </button>
+                    </form>
+                  ) : (
+                    <Link className="profile-logout" href="/sign-in">
+                      Sign in
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
@@ -233,7 +308,10 @@ export function AppShell({
           </div>
         </div>
         {activeGroup && (
-          <nav className="section-rail" aria-label={`${activeGroup.label} modules`}>
+          <nav
+            className="section-rail"
+            aria-label={`${activeGroup.label} modules`}
+          >
             <div className="section-rail-inner">
               <div className="section-rail-heading">
                 <span>Modules</span>
@@ -243,7 +321,12 @@ export function AppShell({
                 {activeGroup.items.map(([label, href]) => {
                   const isActive = activeItem?.[1] === href;
                   return (
-                    <Link className={isActive ? "active" : ""} aria-current={isActive ? "page" : undefined} key={href} href={href}>
+                    <Link
+                      className={isActive ? "active" : ""}
+                      aria-current={isActive ? "page" : undefined}
+                      key={href}
+                      href={href}
+                    >
                       {label}
                     </Link>
                   );
@@ -253,7 +336,7 @@ export function AppShell({
           </nav>
         )}
         <nav className={`mobile-nav ${open ? "open" : ""}`}>
-          {nav.map((group) => (
+          {resolvedNav.map((group) => (
             <details key={group.label}>
               <summary>{group.label}</summary>
               {group.items.map(([label, href]) => (
@@ -280,7 +363,11 @@ export function AppShell({
             <ShieldCheck size={14} />
             <strong>Front Office Football League</strong>
             <span className="league-location">· {locationLabel}</span>
-            <Link className="season-pill" href="/league/lifecycle" title="View league lifecycle">
+            <Link
+              className="season-pill"
+              href="/league/lifecycle"
+              title="View league lifecycle"
+            >
               <span className="status-dot" />
               {lifecycleLabel}
             </Link>
@@ -303,5 +390,7 @@ function routeLocation(pathname: string) {
   if (pathname.startsWith("/commissioner")) return "Commissioner Center";
   if (pathname === "/preferences") return "Preferences";
   const segment = pathname.split("/").filter(Boolean).at(-1) ?? "League HQ";
-  return segment.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return segment
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

@@ -16,7 +16,20 @@ export async function POST(request: Request) {
       { error: "Invalid development account" },
       { status: 400 },
     );
-  const response = NextResponse.redirect(new URL("/league", request.url), 303);
+  const requestedNext = form.get("next");
+  const next =
+    typeof requestedNext === "string" &&
+    requestedNext.startsWith("/") &&
+    !requestedNext.startsWith("//")
+      ? requestedNext
+      : "/league";
+  // Keep this redirect relative. Next can normalize request.url to localhost
+  // while a browser is using 127.0.0.1, which turns a local sign-in into a
+  // cross-origin redirect and is correctly rejected by CSP form-action.
+  const response = new NextResponse(null, {
+    status: 303,
+    headers: { Location: next },
+  });
   response.cookies.set("football_dev_role", parsed.data.role, {
     httpOnly: true,
     sameSite: "lax",
